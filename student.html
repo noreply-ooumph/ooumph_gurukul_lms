@@ -254,6 +254,7 @@ function render() {
         <div class="sidebar-item ${state.page==='my-track'?'active':''}" data-page="my-track"><span>📚</span><span>My Track</span></div>
         <div class="sidebar-item" onclick="window.location.href='courses.html'" style="color:#f39c12"><span>🎓</span><span>Courses</span></div>
         <div class="sidebar-item ${state.page==='progress'?'active':''}" data-page="progress" style="color:#00ff88"><span>📊</span><span>My Progress</span></div>
+        <div class="sidebar-item ${state.page==='ai'?'active':''}" data-page="ai" style="color:#a78bfa"><span>🤖</span><span>AI Agents</span></div>
         <div class="sidebar-divider"></div>
         <div class="sidebar-item ${state.page==='watchlist'?'active':''}" data-page="watchlist"><span>⏰</span><span>Watch Later</span></div>
         <div class="sidebar-item ${state.page==='liked'?'active':''}" data-page="liked"><span>❤️</span><span>Liked</span></div>
@@ -275,6 +276,7 @@ function renderPageContent(filtered, cats) {
   if (state.page === 'history') return `<h1 style="font-size:2rem;margin-bottom:1.5rem">Watch History</h1>${renderGrid(state.content.filter(c=>state.history.has(c.id)))}`;
   if (state.page === 'materials') return renderMaterials();
   if (state.page === 'progress') return renderProgress();
+  if (state.page === 'ai') return renderAIAgents();
   if (state.page === 'profile') return renderProfile();
 
   return `
@@ -467,6 +469,367 @@ function renderProgress() {
     </div>`;
 }
 
+// ── AI AGENTS ──────────────────────────────────────────────
+const AI_FN_URL = 'https://macqondmedkskdbqyybo.supabase.co/functions/v1/ai-agent';
+const aiState = { tab: 'study_buddy', chatHistory: [], quizData: null, quizAnswers: {}, flashcards: null, fcIndex: 0, loading: false };
+
+const AI_TABS = [
+  { id:'study_buddy',    icon:'💬', label:'Study Buddy'   },
+  { id:'doubt_solver',   icon:'🤔', label:'Doubt Solver'  },
+  { id:'quiz_generator', icon:'📝', label:'Quiz'          },
+  { id:'summary_generator',icon:'📋',label:'Summary'      },
+  { id:'flashcard_maker',icon:'🃏', label:'Flashcards'    },
+  { id:'learning_path',  icon:'🗺️', label:'Learning Path' },
+  { id:'career_guidance',icon:'💼', label:'Career'        },
+];
+
+async function callAI(agent, message, context='') {
+  aiState.loading = true;
+  try {
+    const res = await fetch(AI_FN_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ agent, message, context })
+    });
+    const data = await res.json();
+    if (data.error) return { error: data.error };
+    return { text: data.text };
+  } catch(e) {
+    return { error: e.message };
+  } finally {
+    aiState.loading = false;
+  }
+}
+
+function renderAIAgents() {
+  const progress = JSON.parse(localStorage.getItem('gurukul_progress')||'{}');
+  const completedCount = Object.keys(progress).length;
+  const track = state.user.track;
+
+  return `
+  <div style="max-width:900px">
+    <h1 style="font-size:2rem;margin-bottom:.25rem">🤖 AI Agents</h1>
+    <p style="color:#aaa;margin-bottom:1.5rem">Powered by Claude AI · ${track} Track</p>
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;border-bottom:2px solid #303030;padding-bottom:.75rem">
+      ${AI_TABS.map(t=>`
+        <button data-aitab="${t.id}" style="padding:.5rem 1rem;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .2s;
+          background:${aiState.tab===t.id?'#a78bfa':'#212121'};color:${aiState.tab===t.id?'#000':'#aaa'};border:1px solid ${aiState.tab===t.id?'#a78bfa':'#303030'}">
+          ${t.icon} ${t.label}
+        </button>`).join('')}
+    </div>
+
+    <!-- Agent content -->
+    <div id="aiContent">${renderAITab(track, completedCount)}</div>
+  </div>`;
+}
+
+function renderAITab(track, completedCount) {
+  const t = aiState.tab;
+
+  if (t === 'study_buddy') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;overflow:hidden">
+      <div style="padding:1rem 1.5rem;border-bottom:1px solid #303030;background:#181818;display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.5rem">💬</span>
+        <div><div style="font-weight:700">AI Study Buddy</div><div style="color:#aaa;font-size:.8rem">Ask anything about your ${track} track content</div></div>
+      </div>
+      <div id="chatBox" style="height:380px;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem">
+        ${aiState.chatHistory.length === 0 ? `<div style="text-align:center;color:#555;margin:auto">
+          <div style="font-size:3rem;margin-bottom:.5rem">💬</div>
+          <p>Ask me anything about ${track} — concepts, explanations, examples!</p>
+        </div>` : aiState.chatHistory.map(m=>`
+          <div style="display:flex;justify-content:${m.role==='user'?'flex-end':'flex-start'}">
+            <div style="max-width:75%;padding:.75rem 1rem;border-radius:12px;font-size:.9rem;line-height:1.6;
+              background:${m.role==='user'?'#a78bfa':'#303030'};color:${m.role==='user'?'#000':'#f1f1f1'}">
+              ${m.content.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}
+            </div>
+          </div>`).join('')}
+        ${aiState.loading?`<div style="display:flex;gap:.5rem;align-items:center;color:#aaa;font-size:.85rem"><div style="width:8px;height:8px;background:#a78bfa;border-radius:50%;animation:pulse 1s infinite"></div>AI is thinking...</div>`:''}
+      </div>
+      <div style="padding:1rem;border-top:1px solid #303030;display:flex;gap:.75rem">
+        <input id="chatInput" style="flex:1;background:#0f0f0f;border:1px solid #303030;border-radius:8px;padding:.75rem 1rem;color:#f1f1f1;font-size:.95rem;outline:none"
+          placeholder="Ask a question about ${track}..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button onclick="sendChat()" style="background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.75rem 1.5rem;font-weight:700;cursor:pointer;white-space:nowrap">Send →</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem">
+      ${['What is precision farming?','Explain IoT sensors','Give me a quiz topic','What jobs can I get?'].map(q=>`
+        <button onclick="document.getElementById('chatInput').value='${q}';sendChat()"
+          style="background:#181818;border:1px solid #303030;color:#aaa;padding:.4rem .8rem;border-radius:20px;font-size:.8rem;cursor:pointer">${q}</button>`).join('')}
+    </div>`;
+
+  if (t === 'doubt_solver') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">🤔</span>
+        <div><div style="font-weight:700">Doubt Solver</div><div style="color:#aaa;font-size:.8rem">Type your doubt — get a simple explanation instantly</div></div>
+      </div>
+      <textarea id="doubtInput" style="width:100%;background:#0f0f0f;border:1px solid #303030;border-radius:8px;padding:1rem;color:#f1f1f1;font-size:.95rem;resize:vertical;min-height:100px;outline:none;font-family:inherit"
+        placeholder="e.g. I don't understand how IoT sensors measure soil moisture..."></textarea>
+      <button onclick="solveDoubt()" style="margin-top:.75rem;background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.75rem 2rem;font-weight:700;cursor:pointer;width:100%">
+        ${aiState.loading?'Solving...':'🤔 Solve My Doubt'}
+      </button>
+      <div id="doubtResult" style="margin-top:1rem"></div>
+    </div>`;
+
+  if (t === 'quiz_generator') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">📝</span>
+        <div><div style="font-weight:700">Quiz Generator</div><div style="color:#aaa;font-size:.8rem">Auto-generates 5 MCQ questions on any topic</div></div>
+      </div>
+      ${!aiState.quizData ? `
+        <input id="quizTopic" style="width:100%;background:#0f0f0f;border:1px solid #303030;border-radius:8px;padding:.875rem;color:#f1f1f1;font-size:.95rem;outline:none;margin-bottom:.75rem"
+          placeholder="Enter topic e.g. Precision Farming, IoT in Agriculture...">
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem">
+          ${['Precision Farming','IoT Sensors','Smart Agriculture','Crop Analytics'].map(t=>`
+            <button onclick="document.getElementById('quizTopic').value='${t}'"
+              style="background:#303030;border:none;color:#aaa;padding:.4rem .75rem;border-radius:6px;font-size:.8rem;cursor:pointer">${t}</button>`).join('')}
+        </div>
+        <button onclick="generateQuiz()" style="background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.875rem;width:100%;font-weight:700;cursor:pointer">
+          ${aiState.loading?'Generating...':'📝 Generate Quiz'}
+        </button>` :
+        renderQuiz()}
+    </div>`;
+
+  if (t === 'summary_generator') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">📋</span>
+        <div><div style="font-weight:700">Summary Generator</div><div style="color:#aaa;font-size:.8rem">Get a bullet-point summary of any lesson topic</div></div>
+      </div>
+      <input id="summaryTopic" style="width:100%;background:#0f0f0f;border:1px solid #303030;border-radius:8px;padding:.875rem;color:#f1f1f1;font-size:.95rem;outline:none;margin-bottom:.75rem"
+        placeholder="Enter lesson topic e.g. Farm IoT Architecture...">
+      <button onclick="generateSummary()" style="background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.875rem;width:100%;font-weight:700;cursor:pointer;margin-bottom:1rem">
+        ${aiState.loading?'Summarising...':'📋 Generate Summary'}
+      </button>
+      <div id="summaryResult"></div>
+    </div>`;
+
+  if (t === 'flashcard_maker') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">🃏</span>
+        <div><div style="font-weight:700">Flashcard Maker</div><div style="color:#aaa;font-size:.8rem">Generate revision flashcards for any topic</div></div>
+      </div>
+      ${!aiState.flashcards ? `
+        <input id="fcTopic" style="width:100%;background:#0f0f0f;border:1px solid #303030;border-radius:8px;padding:.875rem;color:#f1f1f1;font-size:.95rem;outline:none;margin-bottom:.75rem"
+          placeholder="Enter topic e.g. Soil Sensors, Crop Monitoring...">
+        <button onclick="generateFlashcards()" style="background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.875rem;width:100%;font-weight:700;cursor:pointer">
+          ${aiState.loading?'Creating...':'🃏 Create Flashcards'}
+        </button>` :
+        renderFlashcard()}
+    </div>`;
+
+  if (t === 'learning_path') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">🗺️</span>
+        <div><div style="font-weight:700">Learning Path Advisor</div><div style="color:#aaa;font-size:.8rem">Personalised next steps based on your progress</div></div>
+      </div>
+      <div style="background:#181818;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:.9rem;color:#aaa">
+        📊 Track: <strong style="color:#f1f1f1">${track}</strong> · Lessons done: <strong style="color:#00ff88">${completedCount}</strong> · Content watched: <strong style="color:#3ea6ff">${state.history.size}</strong>
+      </div>
+      <button onclick="getPath()" style="background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.875rem;width:100%;font-weight:700;cursor:pointer;margin-bottom:1rem">
+        ${aiState.loading?'Analysing...':'🗺️ Show My Learning Path'}
+      </button>
+      <div id="pathResult"></div>
+    </div>`;
+
+  if (t === 'career_guidance') return `
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <span style="font-size:1.5rem">💼</span>
+        <div><div style="font-weight:700">Career Guidance Bot</div><div style="color:#aaa;font-size:.8rem">Map your skills to real job roles</div></div>
+      </div>
+      <div style="background:#181818;border-radius:8px;padding:1rem;margin-bottom:1rem;font-size:.9rem;color:#aaa">
+        🎓 Track: <strong style="color:#f1f1f1">${track}</strong> · Courses completed: <strong style="color:#f39c12">${completedCount > 0 ? 'In Progress' : 'Starting Out'}</strong>
+      </div>
+      <button onclick="getCareer()" style="background:#a78bfa;color:#000;border:none;border-radius:8px;padding:.875rem;width:100%;font-weight:700;cursor:pointer;margin-bottom:1rem">
+        ${aiState.loading?'Analysing...':'💼 Show Career Paths'}
+      </button>
+      <div id="careerResult"></div>
+    </div>`;
+
+  return '';
+}
+
+function renderQuiz() {
+  const q = aiState.quizData.questions[0];
+  const idx = 0;
+  return `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <span style="color:#a78bfa;font-weight:700">📝 ${aiState.quizData.topic}</span>
+        <button onclick="aiState.quizData=null;aiState.quizAnswers={};refreshAI()" style="background:#303030;border:none;color:#aaa;padding:.4rem .75rem;border-radius:6px;cursor:pointer">New Quiz</button>
+      </div>
+      ${aiState.quizData.questions.map((q,i)=>{
+        const answered = aiState.quizAnswers[i] !== undefined;
+        const correct = aiState.quizAnswers[i] === q.answer;
+        return `<div style="background:#181818;border-radius:10px;padding:1.25rem;margin-bottom:1rem;border:1px solid ${answered?(correct?'#00ff8844':'#ff444444'):'#303030'}">
+          <div style="font-weight:600;margin-bottom:.75rem;font-size:.95rem">Q${i+1}. ${q.q}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+            ${q.options.map(opt=>{
+              const letter = opt[0];
+              const isSelected = aiState.quizAnswers[i] === letter;
+              const isCorrect = q.answer === letter;
+              let bg = '#212121'; let border = '#303030'; let col = '#f1f1f1';
+              if (answered && isCorrect) { bg='rgba(0,255,136,.15)'; border='#00ff88'; col='#00ff88'; }
+              else if (answered && isSelected && !isCorrect) { bg='rgba(255,68,68,.15)'; border='#ff4444'; col='#ff4444'; }
+              return `<button ${answered?'disabled':''} onclick="answerQuiz(${i},'${letter}')"
+                style="text-align:left;padding:.6rem .8rem;border-radius:6px;border:1px solid ${border};background:${bg};color:${col};cursor:${answered?'default':'pointer'};font-size:.85rem;transition:all .2s">${opt}</button>`;
+            }).join('')}
+          </div>
+          ${answered?`<div style="margin-top:.75rem;padding:.6rem;background:#252525;border-radius:6px;font-size:.82rem;color:#aaa">${correct?'✅':'❌'} ${q.explanation}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderFlashcard() {
+  const cards = aiState.flashcards.cards;
+  const i = aiState.fcIndex;
+  const card = cards[i];
+  return `
+    <div style="text-align:center">
+      <div style="color:#aaa;font-size:.85rem;margin-bottom:1rem">${i+1} / ${cards.length} · ${aiState.flashcards.topic}</div>
+      <div id="fcCard" style="background:#181818;border:2px solid #a78bfa;border-radius:16px;padding:2rem;min-height:160px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;margin-bottom:1rem"
+        onclick="flipCard(this)">
+        <div style="font-size:1.1rem;font-weight:600;line-height:1.5" id="fcText">${card.front}</div>
+        <div style="display:none;font-size:1rem;color:#a78bfa;line-height:1.6" id="fcBack">${card.back}</div>
+      </div>
+      <p style="color:#555;font-size:.8rem;margin-bottom:1rem">Tap card to flip</p>
+      <div style="display:flex;gap:1rem;justify-content:center">
+        <button onclick="aiState.fcIndex=Math.max(0,aiState.fcIndex-1);refreshAI()" style="background:#303030;border:none;color:#f1f1f1;padding:.75rem 1.5rem;border-radius:8px;cursor:pointer" ${i===0?'disabled':''}>← Prev</button>
+        <button onclick="aiState.flashcards=null;aiState.fcIndex=0;refreshAI()" style="background:#303030;border:none;color:#aaa;padding:.75rem 1.5rem;border-radius:8px;cursor:pointer">New Topic</button>
+        <button onclick="aiState.fcIndex=Math.min(cards.length-1,aiState.fcIndex+1);refreshAI()" style="background:#a78bfa;border:none;color:#000;padding:.75rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600" ${i===cards.length-1?'disabled':''}>Next →</button>
+      </div>
+    </div>`;
+}
+
+function flipCard(el) {
+  const front = el.querySelector('#fcText');
+  const back = el.querySelector('#fcBack');
+  const isFlipped = back.style.display !== 'none';
+  front.style.display = isFlipped ? 'block' : 'none';
+  back.style.display = isFlipped ? 'none' : 'block';
+  el.style.borderColor = isFlipped ? '#a78bfa' : '#00ff88';
+}
+
+function refreshAI() {
+  const progress = JSON.parse(localStorage.getItem('gurukul_progress')||'{}');
+  document.getElementById('aiContent').innerHTML = renderAITab(state.user.track, Object.keys(progress).length);
+  setupAIHandlers();
+}
+
+function aiResult(html) {
+  return `<div style="background:#181818;border-radius:10px;padding:1.25rem;font-size:.9rem;line-height:1.8;color:#f1f1f1;border-left:3px solid #a78bfa">
+    ${html.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong style="color:#a78bfa">$1</strong>').replace(/•/g,'<span style="color:#a78bfa">•</span>')}
+  </div>`;
+}
+
+function aiError(msg) {
+  return `<div style="background:rgba(255,68,68,.1);border:1px solid #ff4444;border-radius:8px;padding:1rem;font-size:.9rem;color:#ff8888">
+    ⚠️ ${msg.includes('ANTHROPIC_API_KEY') ? 'Claude API key not configured yet. Add ANTHROPIC_API_KEY in Supabase → Edge Functions → Secrets.' : msg}
+  </div>`;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input?.value?.trim();
+  if (!msg || aiState.loading) return;
+  input.value = '';
+  aiState.chatHistory.push({ role:'user', content: msg });
+  refreshAI();
+  const ctx = `Student track: ${state.user.track}. Previous messages: ${aiState.chatHistory.slice(-4).map(m=>m.role+': '+m.content).join(' | ')}`;
+  const res = await callAI('study_buddy', msg, ctx);
+  aiState.chatHistory.push({ role:'ai', content: res.error ? '⚠️ ' + res.error : res.text });
+  refreshAI();
+  const box = document.getElementById('chatBox');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+async function solveDoubt() {
+  const input = document.getElementById('doubtInput');
+  const msg = input?.value?.trim();
+  if (!msg || aiState.loading) return;
+  const res = await callAI('doubt_solver', msg, `Student track: ${state.user.track}`);
+  const el = document.getElementById('doubtResult');
+  if (el) el.innerHTML = res.error ? aiError(res.error) : aiResult(res.text);
+}
+
+async function generateQuiz() {
+  const topic = document.getElementById('quizTopic')?.value?.trim() || state.user.track;
+  if (aiState.loading) return;
+  const res = await callAI('quiz_generator', `Generate a quiz about: ${topic} in the context of ${state.user.track}`);
+  if (res.error) { alert(res.error); return; }
+  try {
+    const json = res.text.match(/\{[\s\S]*\}/)?.[0];
+    aiState.quizData = JSON.parse(json);
+    aiState.quizAnswers = {};
+    refreshAI();
+  } catch(e) { alert('Could not parse quiz. Try again.'); }
+}
+
+function answerQuiz(qIdx, letter) {
+  aiState.quizAnswers[qIdx] = letter;
+  refreshAI();
+}
+
+async function generateSummary() {
+  const topic = document.getElementById('summaryTopic')?.value?.trim();
+  if (!topic || aiState.loading) return;
+  const res = await callAI('summary_generator', topic, `Track: ${state.user.track}`);
+  const el = document.getElementById('summaryResult');
+  if (el) el.innerHTML = res.error ? aiError(res.error) : aiResult(res.text);
+}
+
+async function generateFlashcards() {
+  const topic = document.getElementById('fcTopic')?.value?.trim() || state.user.track;
+  if (aiState.loading) return;
+  const res = await callAI('flashcard_maker', `Make flashcards for: ${topic}`);
+  if (res.error) { alert(res.error); return; }
+  try {
+    const json = res.text.match(/\{[\s\S]*\}/)?.[0];
+    aiState.flashcards = JSON.parse(json);
+    aiState.fcIndex = 0;
+    refreshAI();
+  } catch(e) { alert('Could not parse flashcards. Try again.'); }
+}
+
+async function getPath() {
+  if (aiState.loading) return;
+  const progress = JSON.parse(localStorage.getItem('gurukul_progress')||'{}');
+  const ctx = `Track: ${state.user.track}, Lessons completed: ${Object.keys(progress).length}, Content watched: ${state.history.size}, Liked: ${state.liked.size}`;
+  const res = await callAI('learning_path', 'What should I study next?', ctx);
+  const el = document.getElementById('pathResult');
+  if (el) el.innerHTML = res.error ? aiError(res.error) : aiResult(res.text);
+}
+
+async function getCareer() {
+  if (aiState.loading) return;
+  const progress = JSON.parse(localStorage.getItem('gurukul_progress')||'{}');
+  const ctx = `Track: ${state.user.track}, Lessons completed: ${Object.keys(progress).length}, Content watched: ${state.history.size}`;
+  const res = await callAI('career_guidance', 'What career paths suit me?', ctx);
+  const el = document.getElementById('careerResult');
+  if (el) el.innerHTML = res.error ? aiError(res.error) : aiResult(res.text);
+}
+
+function setupAIHandlers() {
+  document.querySelectorAll('[data-aitab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      aiState.tab = btn.dataset.aitab;
+      aiState.quizData = null; aiState.quizAnswers = {};
+      aiState.flashcards = null; aiState.fcIndex = 0;
+      refreshAI();
+    });
+  });
+  const chatInput = document.getElementById('chatInput');
+  if (chatInput) chatInput.addEventListener('keydown', e => { if(e.key==='Enter') sendChat(); });
+}
+// ── END AI AGENTS ──────────────────────────────────────────
+
 function renderProfile() {
   return `
     <div class="profile-card">
@@ -539,6 +902,7 @@ function setupHandlers() {
 
 function setupPageHandlers() {
   document.querySelectorAll('[data-page]').forEach(el => el.addEventListener('click', () => { state.page = el.dataset.page; state.currentContent = null; state.searchQuery = ''; state.selectedCategory = 'All'; render(); }));
+  if (state.page === 'ai') setupAIHandlers();
   document.querySelectorAll('[data-cat]').forEach(el => el.addEventListener('click', () => { state.selectedCategory = el.dataset.cat; document.getElementById('mainContent').innerHTML = renderPageContent(getFilteredContent(), getCategories()); setupPageHandlers(); }));
   document.querySelectorAll('[data-play]').forEach(el => el.addEventListener('click', () => playContent(el.dataset.play)));
   document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => { state.viewingMaterial = state.content.find(c => c.id == el.dataset.view); renderViewer(); }));
