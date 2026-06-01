@@ -253,6 +253,7 @@ function render() {
         <div class="sidebar-item ${state.page==='home'?'active':''}" data-page="home"><span>🏠</span><span>Home</span></div>
         <div class="sidebar-item ${state.page==='my-track'?'active':''}" data-page="my-track"><span>📚</span><span>My Track</span></div>
         <div class="sidebar-item" onclick="window.location.href='courses.html'" style="color:#f39c12"><span>🎓</span><span>Courses</span></div>
+        <div class="sidebar-item ${state.page==='progress'?'active':''}" data-page="progress" style="color:#00ff88"><span>📊</span><span>My Progress</span></div>
         <div class="sidebar-divider"></div>
         <div class="sidebar-item ${state.page==='watchlist'?'active':''}" data-page="watchlist"><span>⏰</span><span>Watch Later</span></div>
         <div class="sidebar-item ${state.page==='liked'?'active':''}" data-page="liked"><span>❤️</span><span>Liked</span></div>
@@ -273,6 +274,7 @@ function renderPageContent(filtered, cats) {
   if (state.page === 'liked') return `<h1 style="font-size:2rem;margin-bottom:1.5rem">Liked Content</h1>${renderGrid(state.content.filter(c=>state.liked.has(c.id)))}`;
   if (state.page === 'history') return `<h1 style="font-size:2rem;margin-bottom:1.5rem">Watch History</h1>${renderGrid(state.content.filter(c=>state.history.has(c.id)))}`;
   if (state.page === 'materials') return renderMaterials();
+  if (state.page === 'progress') return renderProgress();
   if (state.page === 'profile') return renderProfile();
 
   return `
@@ -343,6 +345,126 @@ function renderMaterials() {
           <button class="btn btn-primary" style="width:auto;padding:.75rem 1.5rem">View</button>
         </div>
       </div>`).join('')}`;
+}
+
+function renderProgress() {
+  const COURSE_DATA = {
+    Agriculture:[{id:'agri-01',title:'Digital Agriculture Fundamentals',totalLessons:9}],
+    Healthcare:[{id:'health-01',title:'Digital Healthcare Management',totalLessons:9}],
+    Education:[{id:'edu-01',title:'EdTech Product Design & Delivery',totalLessons:8}],
+    Commerce:[{id:'comm-01',title:'D2C Brand Building on ONDC',totalLessons:9}],
+    Governance:[{id:'gov-01',title:'Digital Public Infrastructure & Policy',totalLessons:8}],
+    Media:[{id:'media-01',title:'AI-Powered Content Production',totalLessons:8}],
+    Telecom:[{id:'tel-01',title:'5G Networks & CPaaS Fundamentals',totalLessons:8}],
+    Engineering:[{id:'eng-01',title:'Industry 4.0 & Smart Manufacturing',totalLessons:9}],
+    Energy:[{id:'ener-01',title:'Renewable Energy & Green Finance',totalLessons:9}]
+  };
+
+  const progress = JSON.parse(localStorage.getItem('gurukul_progress')||'{}');
+  const enrolled = JSON.parse(localStorage.getItem('gurukul_enrolled')||'[]');
+  const courses = COURSE_DATA[state.user.track] || [];
+  const contentWatched = state.history.size;
+  const contentLiked = state.liked.size;
+  const contentSaved = state.watchlist.size;
+
+  // Calculate overall stats
+  let totalLessons = 0, completedLessons = 0;
+  courses.forEach(c => {
+    totalLessons += c.totalLessons;
+    for(let i=1; i<=c.totalLessons; i++) {
+      const keys = Object.keys(progress).filter(k => k.startsWith(c.id));
+      completedLessons += keys.length;
+    }
+  });
+  // dedupe
+  completedLessons = Object.keys(progress).length;
+  const overallPct = totalLessons ? Math.min(100, Math.round((completedLessons/totalLessons)*100)) : 0;
+
+  const ringColor = overallPct >= 75 ? '#00ff88' : overallPct >= 40 ? '#f39c12' : '#ff0000';
+
+  return `
+    <h1 style="font-size:2rem;margin-bottom:.5rem">📊 My Progress</h1>
+    <p style="color:#aaa;margin-bottom:2rem">${state.user.track} Track · Learning Dashboard</p>
+
+    <!-- Overview Cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;margin-bottom:2.5rem">
+      <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem;text-align:center;transition:border-color .2s" onmouseover="this.style.borderColor='#00ff88'" onmouseout="this.style.borderColor='#303030'">
+        <div style="font-size:2.5rem;font-weight:900;color:#00ff88">${overallPct}%</div>
+        <div style="color:#aaa;font-size:.9rem;margin-top:.25rem">Overall Completion</div>
+      </div>
+      <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem;text-align:center" onmouseover="this.style.borderColor='#ff0000'" onmouseout="this.style.borderColor='#303030'">
+        <div style="font-size:2.5rem;font-weight:900;color:#ff0000">${completedLessons}</div>
+        <div style="color:#aaa;font-size:.9rem;margin-top:.25rem">Lessons Done</div>
+      </div>
+      <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem;text-align:center" onmouseover="this.style.borderColor='#3ea6ff'" onmouseout="this.style.borderColor='#303030'">
+        <div style="font-size:2.5rem;font-weight:900;color:#3ea6ff">${contentWatched}</div>
+        <div style="color:#aaa;font-size:.9rem;margin-top:.25rem">Content Watched</div>
+      </div>
+      <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem;text-align:center" onmouseover="this.style.borderColor='#f39c12'" onmouseout="this.style.borderColor='#303030'">
+        <div style="font-size:2.5rem;font-weight:900;color:#f39c12">${enrolled.length}</div>
+        <div style="color:#aaa;font-size:.9rem;margin-top:.25rem">Courses Enrolled</div>
+      </div>
+    </div>
+
+    <!-- Overall progress bar -->
+    <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem;margin-bottom:2rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <span style="font-weight:600">Overall Track Progress</span>
+        <span style="color:${ringColor};font-weight:700;font-size:1.1rem">${overallPct}%</span>
+      </div>
+      <div style="background:#303030;border-radius:8px;height:12px;overflow:hidden">
+        <div style="height:100%;width:${overallPct}%;background:linear-gradient(90deg,#ff0000,${ringColor});border-radius:8px;transition:width .6s ease"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:.5rem;font-size:.8rem;color:#888">
+        <span>${completedLessons} lessons completed</span>
+        <span>${totalLessons - completedLessons} remaining</span>
+      </div>
+    </div>
+
+    <!-- Course breakdown -->
+    <h2 style="font-size:1.25rem;margin-bottom:1rem">Course Breakdown</h2>
+    ${courses.map(c => {
+      const cKeys = Object.keys(progress).filter(k => k.startsWith(c.id));
+      const done = cKeys.length;
+      const total = c.totalLessons;
+      const pct = Math.round((done/total)*100);
+      const isEnrolled = enrolled.includes(c.id);
+      const barColor = pct === 100 ? '#00ff88' : pct > 0 ? '#f39c12' : '#303030';
+      const status = pct === 100 ? '🏆 Completed' : pct > 0 ? '📖 In Progress' : isEnrolled ? '▶ Enrolled' : '⏸ Not Started';
+      return `
+      <div style="background:#212121;border:1px solid #303030;border-radius:12px;padding:1.5rem;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+          <div>
+            <div style="font-weight:700;font-size:1rem">${c.title}</div>
+            <div style="color:#aaa;font-size:.85rem;margin-top:.2rem">${state.user.track} Track</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:.75rem">
+            <span style="font-size:.8rem;padding:.3rem .75rem;border-radius:20px;background:${pct===100?'rgba(0,255,136,.15)':pct>0?'rgba(243,156,18,.15)':'rgba(255,255,255,.05)'};color:${pct===100?'#00ff88':pct>0?'#f39c12':'#888'};border:1px solid ${pct===100?'#00ff8844':pct>0?'#f39c1244':'#303030'}">${status}</span>
+            <span style="font-weight:700;color:${barColor}">${pct}%</span>
+          </div>
+        </div>
+        <div style="background:#303030;border-radius:6px;height:8px;overflow:hidden;margin-bottom:.5rem">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:6px;transition:width .5s ease"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.8rem;color:#888">
+          <span>${done} / ${total} lessons</span>
+          ${pct===100 ? `<span style="color:#00ff88;cursor:pointer" onclick="window.location.href='courses.html'">🎓 Get Certificate →</span>` : `<span style="cursor:pointer;color:#aaa" onclick="window.location.href='courses.html'">Continue →</span>`}
+        </div>
+      </div>`;
+    }).join('')}
+
+    <!-- Activity -->
+    <h2 style="font-size:1.25rem;margin-bottom:1rem;margin-top:.5rem">Content Activity</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem">
+      ${[['🕒 Watch History',contentWatched,'#3ea6ff'],['❤️ Liked',contentLiked,'#ff0000'],['⏰ Watch Later',contentSaved,'#f39c12']].map(([label,val,col])=>`
+      <div style="background:#212121;border:1px solid #303030;border-radius:10px;padding:1rem;display:flex;align-items:center;gap:1rem">
+        <div style="font-size:1.5rem">${label.split(' ')[0]}</div>
+        <div>
+          <div style="font-size:1.5rem;font-weight:700;color:${col}">${val}</div>
+          <div style="color:#aaa;font-size:.8rem">${label.split(' ').slice(1).join(' ')}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
 }
 
 function renderProfile() {
