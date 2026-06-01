@@ -10,32 +10,34 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 });
 
-// Get current user with 5s timeout safety net
+// Fetch full profile from DB — retries up to 3 times
 async function getCurrentUser() {
   try {
-    const { data: { user } } = await Promise.race([
-      sb.auth.getUser(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-    ]);
-    if (!user) return null;
+    const { data: { user }, error: authErr } = await sb.auth.getUser();
+    if (authErr || !user) return null;
 
-    const { data: profile } = await Promise.race([
-      sb.from('profiles').select('*').eq('id', user.id).maybeSingle(),
-      new Promise(resolve => setTimeout(() => resolve({ data: null }), 4000))
-    ]);
+    // Retry up to 3 times with increasing delay
+    for (let i = 0; i < 3; i++) {
+      const { data: profile, error } = await sb.from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (profile) return profile;
+      if (profile && profile.track !== undefined) return profile;
+      if (i < 2) await new Promise(r => setTimeout(r, 300 * (i + 1)));
+    }
 
-    // Fallback to user metadata if DB is slow
+    // Last resort — build from metadata but mark as incomplete
     const meta = user.user_metadata || {};
     return {
       id: user.id,
       email: user.email,
       full_name: meta.full_name || user.email,
       role: meta.role || 'student',
-      track: meta.track || null,
+      track: null,
       phone: null,
-      qualification: null
+      qualification: null,
+      _fallback: true
     };
   } catch(e) {
     return null;
@@ -45,9 +47,4 @@ async function getCurrentUser() {
 async function signOut() {
   try { await sb.auth.signOut(); } catch(e) {}
   window.location.href = window.location.pathname;
-}
-
-// Clear stale session and show login — call from any portal
-function forceLogin(renderLoginFn) {
-  sb.auth.signOut().catch(() => {}).finally(() => renderLoginFn());
 }
