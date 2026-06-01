@@ -16,8 +16,20 @@ const TRACKS = ['Agriculture', 'Healthcare', 'Education', 'Commerce', 'Governanc
 async function getCurrentUser() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
-  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
-  return profile;
+  // Try fetching profile — if RLS blocks it, fall back to user metadata
+  const { data: profile, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  if (profile) return profile;
+  // Fallback: build profile from auth metadata (for cases where RLS blocks select)
+  const meta = user.user_metadata || {};
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: meta.full_name || user.email,
+    role: meta.role || 'student',
+    track: meta.track || null,
+    phone: meta.phone || null,
+    qualification: meta.qualification || null
+  };
 }
 
 async function signOut() {
