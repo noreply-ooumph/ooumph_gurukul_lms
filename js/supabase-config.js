@@ -10,8 +10,6 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
 });
 
-const TRACKS = ['Agriculture','Healthcare','Education','Commerce','Governance','Media','Telecom','Engineering','Energy'];
-
 // Get current user with 5s timeout safety net
 async function getCurrentUser() {
   try {
