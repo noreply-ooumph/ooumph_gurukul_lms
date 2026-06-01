@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OOUMPH LMS - Student Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Roboto',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#0f0f0f;color:#f1f1f1;line-height:1.6}
+    .hidden{display:none!important}
+    .login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:linear-gradient(135deg,#0f0f0f 0%,#1a1a1a 100%)}
+    .login-box{background:#212121;border-radius:16px;padding:3rem;max-width:450px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.5);border:1px solid #303030}
+    .login-title{text-align:center;font-size:3rem;font-weight:900;color:#ff0000;margin-bottom:.5rem}
+    .login-subtitle{text-align:center;color:#aaa;margin-bottom:2rem;font-size:1.1rem}
+    .form-group{margin-bottom:1.5rem}
+    .form-group label{display:block;margin-bottom:.5rem;font-weight:500}
+    .form-group input{width:100%;padding:.875rem;background:#0f0f0f;border:2px solid #303030;border-radius:8px;color:#f1f1f1;font-size:1rem;transition:border-color .2s}
+    .form-group input:focus{outline:none;border-color:#ff0000}
+    .btn{padding:.875rem;width:100%;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s}
+    .btn-primary{background:#ff0000;color:#fff}
+    .btn-primary:hover{background:#cc0000;transform:translateY(-1px)}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .error-text{color:#ff4444;font-size:.85rem;margin-top:.5rem;padding:.5rem;background:rgba(255,68,68,.1);border-radius:4px}
+    .navbar{background:#212121;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #303030;position:sticky;top:0;z-index:100}
+    .nav-left{display:flex;align-items:center;gap:2rem}
+    .logo{font-size:1.5rem;font-weight:900;color:#ff0000;cursor:pointer;display:flex;align-items:center;gap:.5rem}
+    .search-box{display:flex;background:#0f0f0f;border-radius:24px;padding:.5rem 1rem;min-width:400px;border:1px solid #303030}
+    .search-input{flex:1;border:none;background:none;color:#f1f1f1;font-size:1rem;outline:none}
+    .user-info{display:flex;align-items:center;gap:.75rem;padding:.5rem 1rem;background:#181818;border-radius:8px;cursor:pointer;position:relative;transition:background .2s}
+    .user-info:hover{background:#252525}
+    .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff0000,#cc0000);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem}
+    .user-dropdown{position:absolute;top:100%;right:0;margin-top:.5rem;background:#212121;border:1px solid #303030;border-radius:8px;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.5);overflow:hidden;z-index:200}
+    .dropdown-header{padding:1rem;border-bottom:1px solid #303030;background:#181818}
+    .dropdown-email{color:#aaa;font-size:.85rem;margin-top:.25rem}
+    .dropdown-track{color:#ff0000;font-size:.85rem;margin-top:.25rem;font-weight:600}
+    .dropdown-item{padding:.75rem 1rem;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:.5rem}
+    .dropdown-item:hover{background:#181818}
+    .main-layout{display:flex;min-height:calc(100vh - 73px)}
+    .sidebar{width:240px;background:#212121;border-right:1px solid #303030;padding:1.5rem 0;flex-shrink:0}
+    .sidebar-item{padding:.875rem 1.5rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:all .2s;color:#aaa}
+    .sidebar-item:hover{background:#181818;color:#f1f1f1}
+    .sidebar-item.active{background:#181818;color:#ff0000;border-left:3px solid #ff0000}
+    .sidebar-divider{height:1px;background:#303030;margin:1rem 0}
+    .content{flex:1;padding:2rem;overflow-y:auto;max-width:1400px;margin:0 auto;width:100%}
+    .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.5rem}
+    .video-card{background:#212121;border-radius:12px;overflow:hidden;border:1px solid #303030;transition:transform .2s,box-shadow .2s}
+    .video-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(255,0,0,.2);border-color:#ff0000}
+    .video-thumbnail{position:relative;width:100%;padding-top:56.25%;overflow:hidden;background:#181818;cursor:pointer}
+    .video-thumbnail img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+    .video-duration{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.85);padding:.25rem .5rem;border-radius:4px;font-size:.85rem;font-weight:600}
+    .content-badge{position:absolute;top:8px;left:8px;padding:.25rem .75rem;border-radius:4px;font-size:.75rem;font-weight:600;background:#ff0000}
+    .content-badge.pdf{background:#ff6b00}
+    .content-badge.image{background:#00a8ff}
+    .content-badge.csv{background:#00ff88;color:#000}
+    .video-info{padding:1rem}
+    .video-title{font-size:1rem;font-weight:600;margin-bottom:.5rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .video-meta{color:#aaa;font-size:.85rem;display:flex;gap:.5rem;flex-wrap:wrap}
+    .video-actions{display:flex;gap:.5rem;padding:0 1rem 1rem}
+    .action-btn{flex:1;padding:.5rem;background:#303030;border:none;border-radius:6px;color:#f1f1f1;cursor:pointer;font-size:.85rem;transition:all .2s}
+    .action-btn:hover{background:#404040}
+    .action-btn.active{background:#ff0000}
+    .back-btn{background:#212121;border:1px solid #303030;color:#f1f1f1;cursor:pointer;margin-bottom:1rem;font-size:1rem;padding:.75rem 1.5rem;border-radius:8px;display:inline-flex;align-items:center;gap:.5rem;transition:all .2s}
+    .back-btn:hover{background:#181818;border-color:#ff0000}
+    .video-player{background:#000;border-radius:12px;overflow:hidden;margin-bottom:2rem}
+    .video-player video,.video-player iframe,.video-player embed{width:100%;aspect-ratio:16/9;border:none}
+    .video-details{background:#212121;padding:2rem;border-radius:12px;border:1px solid #303030}
+    .video-details h1{font-size:1.75rem;margin-bottom:1rem}
+    .video-details p{color:#aaa;line-height:1.8}
+    .player-actions{display:flex;gap:1rem;margin-bottom:2rem;padding:1rem;background:#212121;border-radius:12px;flex-wrap:wrap}
+    .player-action-btn{flex:1;min-width:150px;padding:.75rem 1.5rem;background:#303030;border:none;border-radius:8px;color:#f1f1f1;cursor:pointer;font-size:1rem;font-weight:600;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .player-action-btn:hover{background:#404040}
+    .player-action-btn.active{background:#ff0000}
+    .material-card{background:#212121;padding:1.5rem;border-radius:12px;border:1px solid #303030;margin-bottom:1rem;cursor:pointer;transition:all .2s}
+    .material-card:hover{border-color:#ff0000;transform:translateX(4px)}
+    .material-header{display:flex;align-items:center;gap:1rem}
+    .material-icon{width:60px;height:60px;background:#303030;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0}
+    .material-icon.pdf{background:#ff6b00}
+    .material-icon.image{background:#00a8ff}
+    .material-icon.csv{background:#00ff88}
+    .material-info{flex:1}
+    .material-title{font-weight:600;margin-bottom:.25rem;font-size:1.1rem}
+    .material-meta{color:#aaa;font-size:.85rem}
+    .viewer-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#0f0f0f;z-index:1000;display:flex;flex-direction:column}
+    .viewer-header{background:#212121;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #303030}
+    .viewer-body{flex:1;padding:2rem;overflow:auto;display:flex;align-items:center;justify-content:center}
+    .viewer-body img{max-width:100%;max-height:100%;object-fit:contain}
+    .viewer-body embed{width:100%;height:100%;border:none}
+    .empty-state{text-align:center;padding:4rem 2rem}
+    .empty-icon{font-size:4rem;margin-bottom:1rem}
+    .empty-title{font-size:1.5rem;margin-bottom:.5rem}
+    .empty-text{color:#aaa}
+    .profile-card{background:#212121;border-radius:12px;padding:2rem;border:1px solid #303030;max-width:800px;margin:0 auto}
+    .loading{text-align:center;padding:3rem;color:#aaa}
+    .toast{position:fixed;bottom:2rem;right:2rem;padding:1rem 1.5rem;border-radius:8px;font-weight:600;z-index:9999;animation:slideIn .3s ease}
+    .toast.success{background:#00ff88;color:#000}
+    .toast.info{background:#3ea6ff;color:#000}
+    @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @media(max-width:768px){.sidebar{width:60px}.sidebar-item span:last-child{display:none}.search-box{min-width:150px}.video-grid{grid-template-columns:1fr}.player-actions{flex-direction:column}.player-action-btn{min-width:100%}}
+  </style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading...</div></div>
+<script src="js/supabase-config.js"></script>
+<script>
+const state = {
+  user: null, page: 'home', content: [],
+  currentContent: null, viewingMaterial: null,
+  searchQuery: '', selectedCategory: 'All',
+  showDropdown: false,
+  watchlist: new Set(), liked: new Set(), history: new Set(), downloads: new Set()
+};
+
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 2500);
+}
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const profile = await getCurrentUser();
+    if (profile && profile.role === 'student') {
+      state.user = profile;
+      await Promise.all([loadContent(), loadActions()]);
+      render(); return;
+    }
+  }
+  renderLogin();
+}
+
+async function loadContent() {
+  const { data } = await sb.from('content').select('*').eq('track', state.user.track).order('created_at', { ascending: false });
+  state.content = data || [];
+}
+
+async function loadActions() {
+  const { data } = await sb.from('user_content_actions').select('content_id,action').eq('user_id', state.user.id);
+  state.watchlist = new Set(); state.liked = new Set(); state.history = new Set(); state.downloads = new Set();
+  (data||[]).forEach(r => {
+    if (r.action === 'watchlist') state.watchlist.add(r.content_id);
+    else if (r.action === 'liked') state.liked.add(r.content_id);
+    else if (r.action === 'history') state.history.add(r.content_id);
+    else if (r.action === 'download') state.downloads.add(r.content_id);
+  });
+}
+
+async function toggleAction(contentId, action) {
+  const set = action === 'watchlist' ? state.watchlist : action === 'liked' ? state.liked : action === 'download' ? state.downloads : state.history;
+  if (set.has(contentId)) {
+    set.delete(contentId);
+    await sb.from('user_content_actions').delete().match({ user_id: state.user.id, content_id: contentId, action });
+  } else {
+    set.add(contentId);
+    await sb.from('user_content_actions').upsert({ user_id: state.user.id, content_id: contentId, action });
+  }
+}
+
+async function doLogin(email, password) {
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return { success: false, message: error.message };
+  const profile = await getCurrentUser();
+  if (!profile || profile.role !== 'student') {
+    await sb.auth.signOut();
+    return { success: false, message: 'Not registered as a student. Contact administration.' };
+  }
+  state.user = profile;
+  await Promise.all([loadContent(), loadActions()]);
+  return { success: true };
+}
+
+function renderLogin() {
+  document.getElementById('app').innerHTML = `
+    <div class="login-page">
+      <div class="login-box">
+        <h1 class="login-title">OOUMPH</h1>
+        <p class="login-subtitle">Learning Management System</p>
+        <form id="loginForm">
+          <div class="form-group"><label>Registered Email</label><input type="email" id="emailInput" placeholder="student@example.com" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="passInput" placeholder="••••••••" required>
+            <div id="errorText" class="error-text hidden"></div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+        </form>
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid #303030;font-size:.85rem;color:#aaa;text-align:center">
+          <p>📧 Use your registered email</p><p>🎓 Access your DAO track content</p>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Signing in...';
+    const result = await doLogin(document.getElementById('emailInput').value, document.getElementById('passInput').value);
+    if (result.success) { render(); return; }
+    const err = document.getElementById('errorText');
+    err.textContent = result.message; err.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = 'Sign In';
+  });
+}
+
+function getTrackContent() { return state.content; }
+
+function getFilteredContent() {
+  let items = getTrackContent();
+  if (state.searchQuery) items = items.filter(c => c.title.toLowerCase().includes(state.searchQuery) || (c.description||'').toLowerCase().includes(state.searchQuery));
+  if (state.selectedCategory !== 'All') items = items.filter(c => c.category === state.selectedCategory);
+  return items;
+}
+
+function getCategories() {
+  const cats = new Set(state.content.map(c => c.category).filter(Boolean));
+  return ['All', ...Array.from(cats)];
+}
+
+function render() {
+  if (state.viewingMaterial) { renderViewer(); return; }
+  const filtered = getFilteredContent();
+  const cats = getCategories();
+
+  document.getElementById('app').innerHTML = `
+    <nav class="navbar">
+      <div class="nav-left">
+        <div class="logo" id="logoBtn"><span>▶</span><span>OOUMPH</span></div>
+      </div>
+      <div class="search-box">
+        <input class="search-input" id="searchInput" placeholder="Search content..." value="${state.searchQuery}">
+        <span style="color:#aaa">🔍</span>
+      </div>
+      <div class="user-info" id="userBtn">
+        <div class="avatar">${state.user.full_name[0].toUpperCase()}</div>
+        <span>${state.user.full_name.split(' ')[0]}</span>
+        ${state.showDropdown ? `<div class="user-dropdown">
+          <div class="dropdown-header">
+            <div>${state.user.full_name}</div>
+            <div class="dropdown-email">${state.user.email}</div>
+            <div class="dropdown-track">📚 ${state.user.track}</div>
+          </div>
+          <div class="dropdown-item" data-page="profile">👤 Profile</div>
+          <div class="dropdown-item" id="logoutBtn">🚪 Sign Out</div>
+        </div>` : ''}
+      </div>
+    </nav>
+    <div class="main-layout">
+      <div class="sidebar">
+        <div class="sidebar-item ${state.page==='home'?'active':''}" data-page="home"><span>🏠</span><span>Home</span></div>
+        <div class="sidebar-item ${state.page==='my-track'?'active':''}" data-page="my-track"><span>📚</span><span>My Track</span></div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-item ${state.page==='watchlist'?'active':''}" data-page="watchlist"><span>⏰</span><span>Watch Later</span></div>
+        <div class="sidebar-item ${state.page==='liked'?'active':''}" data-page="liked"><span>❤️</span><span>Liked</span></div>
+        <div class="sidebar-item ${state.page==='history'?'active':''}" data-page="history"><span>🕒</span><span>History</span></div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-item ${state.page==='materials'?'active':''}" data-page="materials"><span>📄</span><span>Study Materials</span></div>
+        <div class="sidebar-item ${state.page==='profile'?'active':''}" data-page="profile"><span>👤</span><span>Profile</span></div>
+      </div>
+      <div class="content" id="mainContent">${renderPageContent(filtered, cats)}</div>
+    </div>`;
+  setupHandlers();
+}
+
+function renderPageContent(filtered, cats) {
+  if (state.page === 'watch' && state.currentContent) return renderPlayer();
+
+  if (state.page === 'watchlist') return `<h1 style="font-size:2rem;margin-bottom:1.5rem">Watch Later</h1>${renderGrid(state.content.filter(c=>state.watchlist.has(c.id)))}`;
+  if (state.page === 'liked') return `<h1 style="font-size:2rem;margin-bottom:1.5rem">Liked Content</h1>${renderGrid(state.content.filter(c=>state.liked.has(c.id)))}`;
+  if (state.page === 'history') return `<h1 style="font-size:2rem;margin-bottom:1.5rem">Watch History</h1>${renderGrid(state.content.filter(c=>state.history.has(c.id)))}`;
+  if (state.page === 'materials') return renderMaterials();
+  if (state.page === 'profile') return renderProfile();
+
+  return `
+    <h1 style="font-size:2rem;margin-bottom:.5rem">${state.user.track} Track</h1>
+    <p style="color:#aaa;margin-bottom:2rem">Your personalised content</p>
+    <div style="display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap">
+      ${cats.map(cat => `<button style="padding:.5rem 1rem;background:${state.selectedCategory===cat?'#ff0000':'#212121'};border:1px solid ${state.selectedCategory===cat?'#ff0000':'#303030'};border-radius:8px;color:#f1f1f1;cursor:pointer;transition:all .2s" data-cat="${cat}">${cat}</button>`).join('')}
+    </div>
+    ${renderGrid(filtered)}`;
+}
+
+function renderGrid(items) {
+  if (!items.length) return `<div class="empty-state"><div class="empty-icon">📭</div><h2 class="empty-title">No content found</h2><p class="empty-text">Check back later</p></div>`;
+  return `<div class="video-grid">${items.map(item => `
+    <div class="video-card">
+      <div class="video-thumbnail" data-play="${item.id}">
+        <img src="${item.thumbnail_url || thumbPlaceholder(item.type)}" alt="${item.title}" loading="lazy">
+        ${item.duration ? `<span class="video-duration">${item.duration}</span>` : ''}
+        ${item.type !== 'video' ? `<span class="content-badge ${item.type}">${item.type.toUpperCase()}</span>` : ''}
+      </div>
+      <div class="video-info">
+        <div class="video-title">${item.title}</div>
+        <div class="video-meta"><span>${item.category||''}</span><span>•</span><span>${item.views||0} views</span></div>
+      </div>
+      <div class="video-actions">
+        <button class="action-btn ${state.watchlist.has(item.id)?'active':''}" data-toggle-watchlist="${item.id}">${state.watchlist.has(item.id)?'✓ Saved':'⏰ Save'}</button>
+        <button class="action-btn ${state.liked.has(item.id)?'active':''}" data-toggle-liked="${item.id}">${state.liked.has(item.id)?'❤️':'🤍'}</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function renderPlayer() {
+  const item = state.currentContent;
+  const isYT = item.url && (item.url.includes('youtube.com') || item.url.includes('youtu.be'));
+  return `
+    <button class="back-btn" id="backBtn">← Back</button>
+    <div class="video-player">
+      ${isYT ? `<iframe src="${item.url.replace('watch?v=','embed/')}" allowfullscreen></iframe>` :
+        item.type==='video' ? `<video controls src="${item.url}" controlsList="nodownload"></video>` :
+        item.type==='pdf' ? `<embed src="${item.url}" type="application/pdf"/>` :
+        `<img src="${item.url}" style="width:100%">`}
+    </div>
+    <div class="player-actions">
+      <button class="player-action-btn ${state.liked.has(item.id)?'active':''}" data-toggle-liked="${item.id}">${state.liked.has(item.id)?'❤️ Liked':'🤍 Like'}</button>
+      <button class="player-action-btn ${state.watchlist.has(item.id)?'active':''}" data-toggle-watchlist="${item.id}">${state.watchlist.has(item.id)?'✓ Saved':'⏰ Save'}</button>
+    </div>
+    <div class="video-details">
+      <h1>${item.title}</h1>
+      <div style="color:#aaa;margin-bottom:1.5rem">${item.category||''} • ${item.track} • ${item.views||0} views • ${item.upload_date||''}</div>
+      <p>${item.description||''}</p>
+    </div>`;
+}
+
+function renderMaterials() {
+  const mats = state.content.filter(c => c.type !== 'video');
+  if (!mats.length) return `<div class="empty-state"><div class="empty-icon">📄</div><h2 class="empty-title">No study materials yet</h2><p class="empty-text">PDFs, images and documents will appear here</p></div>`;
+  return `
+    <h1 style="font-size:2rem;margin-bottom:.5rem">Study Materials</h1>
+    <p style="color:#aaa;margin-bottom:2rem">PDFs, images and documents for ${state.user.track} track</p>
+    ${mats.map(item => `
+      <div class="material-card" data-view="${item.id}">
+        <div class="material-header">
+          <div class="material-icon ${item.type}">${item.type==='pdf'?'📄':item.type==='image'?'🖼️':'📊'}</div>
+          <div class="material-info">
+            <div class="material-title">${item.title}</div>
+            <div class="material-meta">${item.type.toUpperCase()} • ${item.category||''} • ${item.upload_date||''}</div>
+          </div>
+          <button class="btn btn-primary" style="width:auto;padding:.75rem 1.5rem">View</button>
+        </div>
+      </div>`).join('')}`;
+}
+
+function renderProfile() {
+  return `
+    <div class="profile-card">
+      <div style="display:flex;align-items:center;gap:2rem;margin-bottom:2rem;padding-bottom:2rem;border-bottom:1px solid #303030">
+        <div class="avatar" style="width:100px;height:100px;font-size:2.5rem">${state.user.full_name[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <h2 style="font-size:1.75rem;margin-bottom:.5rem">${state.user.full_name}</h2>
+          <p style="color:#aaa;margin-bottom:.5rem">${state.user.email}</p>
+          <p style="color:#ff0000;font-weight:600">📚 ${state.user.track} Track</p>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:1rem;margin-bottom:2rem">
+        <div style="color:#aaa;font-weight:500">Phone</div><div>${state.user.phone||'-'}</div>
+        <div style="color:#aaa;font-weight:500">Qualification</div><div>${state.user.qualification||'-'}</div>
+        <div style="color:#aaa;font-weight:500">Enrolled Track</div><div style="color:#ff0000;font-weight:600">${state.user.track}</div>
+      </div>
+      <h3 style="margin-bottom:1rem">Learning Stats</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1rem">
+        ${[['Available',state.content.length],['Watched',state.history.size],['Saved',state.watchlist.size],['Liked',state.liked.size]].map(([l,v])=>`
+        <div style="background:#181818;padding:1.5rem;border-radius:8px;text-align:center">
+          <div style="font-size:2rem;font-weight:700;color:#ff0000">${v}</div>
+          <div style="color:#aaa;font-size:.9rem">${l}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderViewer() {
+  const item = state.viewingMaterial;
+  document.getElementById('app').innerHTML = `
+    <div class="viewer-overlay">
+      <div class="viewer-header">
+        <h2>${item.title}</h2>
+        <button class="btn" id="closeViewer" style="width:auto;padding:.75rem 1.5rem;background:#303030;color:#f1f1f1">✕ Close</button>
+      </div>
+      <div class="viewer-body">
+        ${item.type==='pdf'?`<embed src="${item.url}" type="application/pdf" style="width:100%;height:100%"/>`:
+          item.type==='image'?`<img src="${item.url}" alt="${item.title}"/>`:
+          `<div style="color:#aaa">Preview not available for this file type.</div>`}
+      </div>
+    </div>`;
+  document.getElementById('closeViewer').addEventListener('click', () => { state.viewingMaterial = null; render(); });
+}
+
+function thumbPlaceholder(type) {
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect fill='%23212121' width='320' height='180'/%3E%3Ctext x='50%25' y='50%25' fill='%23ff0000' font-size='18' text-anchor='middle' dy='.3em' font-family='Arial'%3E${type.toUpperCase()}%3C/text%3E%3C/svg%3E`;
+}
+
+async function playContent(id) {
+  state.currentContent = state.content.find(c => c.id == id);
+  if (!state.currentContent) return;
+  state.page = 'watch';
+  if (!state.history.has(id)) {
+    await toggleAction(id, 'history');
+    await sb.rpc('increment_views', { content_id: id });
+    state.currentContent.views = (state.currentContent.views||0) + 1;
+  }
+  render();
+}
+
+function setupHandlers() {
+  document.getElementById('logoBtn')?.addEventListener('click', () => { state.page = 'home'; state.currentContent = null; render(); });
+  document.getElementById('searchInput')?.addEventListener('input', e => { state.searchQuery = e.target.value.toLowerCase(); document.getElementById('mainContent').innerHTML = renderPageContent(getFilteredContent(), getCategories()); setupPageHandlers(); });
+  document.getElementById('userBtn')?.addEventListener('click', e => { e.stopPropagation(); state.showDropdown = !state.showDropdown; render(); });
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => { await signOut(); });
+  document.addEventListener('click', e => { if (state.showDropdown && !e.target.closest('.user-info')) { state.showDropdown = false; render(); } }, { once: true });
+
+  setupPageHandlers();
+}
+
+function setupPageHandlers() {
+  document.querySelectorAll('[data-page]').forEach(el => el.addEventListener('click', () => { state.page = el.dataset.page; state.currentContent = null; state.searchQuery = ''; state.selectedCategory = 'All'; render(); }));
+  document.querySelectorAll('[data-cat]').forEach(el => el.addEventListener('click', () => { state.selectedCategory = el.dataset.cat; document.getElementById('mainContent').innerHTML = renderPageContent(getFilteredContent(), getCategories()); setupPageHandlers(); }));
+  document.querySelectorAll('[data-play]').forEach(el => el.addEventListener('click', () => playContent(el.dataset.play)));
+  document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => { state.viewingMaterial = state.content.find(c => c.id == el.dataset.view); renderViewer(); }));
+  document.getElementById('backBtn')?.addEventListener('click', () => { state.page = 'home'; state.currentContent = null; render(); });
+
+  document.querySelectorAll('[data-toggle-watchlist]').forEach(el => el.addEventListener('click', async e => {
+    e.stopPropagation();
+    const id = parseInt(el.dataset.toggleWatchlist);
+    await toggleAction(id, 'watchlist');
+    const isNow = state.watchlist.has(id);
+    el.textContent = isNow ? '✓ Saved' : '⏰ Save';
+    el.classList.toggle('active', isNow);
+    toast(isNow ? 'Added to Watch Later' : 'Removed from Watch Later');
+  }));
+
+  document.querySelectorAll('[data-toggle-liked]').forEach(el => el.addEventListener('click', async e => {
+    e.stopPropagation();
+    const id = parseInt(el.dataset.toggleLiked);
+    await toggleAction(id, 'liked');
+    const isNow = state.liked.has(id);
+    el.textContent = isNow ? '❤️ Liked' : el.classList.contains('player-action-btn') ? '🤍 Like' : '🤍';
+    el.classList.toggle('active', isNow);
+  }));
+}
+
+init();
+</script>
+</body>
+</html>

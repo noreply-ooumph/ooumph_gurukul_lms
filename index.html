@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OOUMPH Gurukul LMS</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Roboto',-apple-system,sans-serif;background:#0f0f0f;color:#f1f1f1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+    h1{font-size:3.5rem;font-weight:900;color:#ff0000;margin-bottom:.5rem;text-align:center}
+    p{color:#aaa;font-size:1.2rem;margin-bottom:3rem;text-align:center}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:2rem;width:100%;max-width:900px}
+    .card{background:#212121;border:1px solid #303030;border-radius:16px;padding:2rem;text-align:center;text-decoration:none;color:#f1f1f1;transition:all .2s;display:block}
+    .card:hover{border-color:#ff0000;transform:translateY(-4px);box-shadow:0 8px 24px rgba(255,0,0,.2)}
+    .card-icon{font-size:3rem;margin-bottom:1rem}
+    .card-title{font-size:1.3rem;font-weight:700;margin-bottom:.5rem}
+    .card-desc{color:#aaa;font-size:.9rem;line-height:1.6}
+    .card-btn{display:inline-block;margin-top:1.5rem;padding:.75rem 2rem;background:#ff0000;border-radius:8px;font-weight:600;color:#fff}
+    footer{margin-top:3rem;color:#555;font-size:.85rem}
+  </style>
+</head>
+<body>
+  <h1>OOUMPH</h1>
+  <p>Gurukul Learning Management System</p>
+  <div class="cards">
+    <a href="ooumph-user-portal.html" class="card">
+      <div class="card-icon">📚</div>
+      <div class="card-title">Student Portal</div>
+      <div class="card-desc">Access your DAO track content, videos, PDFs, and study materials.</div>
+      <span class="card-btn">Enter →</span>
+    </a>
+    <a href="ooumph-admin-portal.html" class="card">
+      <div class="card-icon">🎓</div>
+      <div class="card-title">Teacher Portal</div>
+      <div class="card-desc">Upload and manage content for your assigned DAO track.</div>
+      <span class="card-btn">Enter →</span>
+    </a>
+    <a href="super-admin-portal.html" class="card">
+      <div class="card-icon">🔐</div>
+      <div class="card-title">Super Admin</div>
+      <div class="card-desc">Full platform control — manage users, content, and all tracks.</div>
+      <span class="card-btn">Enter →</span>
+    </a>
+  </div>
+  <footer>OOUMPH Gurukul LMS · Powered by Supabase</footer>
+</body>
+</html>
