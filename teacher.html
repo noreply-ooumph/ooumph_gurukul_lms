@@ -101,22 +101,22 @@ function toast(msg, type='success') {
 }
 
 async function init() {
+  const timer = setTimeout(() => { sb.auth.signOut().catch(()=>{}); renderLogin(); }, 6000);
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       const profile = await getCurrentUser();
       if (profile && profile.role === 'teacher') {
+        clearTimeout(timer);
         state.teacher = profile;
         state.view = 'admin';
         await loadContent();
         render(); return;
       }
-      // Wrong role — clear session
-      await sb.auth.signOut();
+      sb.auth.signOut().catch(()=>{});
     }
-  } catch(e) {
-    await sb.auth.signOut();
-  }
+  } catch(e) {}
+  clearTimeout(timer);
   renderLogin();
 }
 

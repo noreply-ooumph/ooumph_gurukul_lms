@@ -118,20 +118,21 @@ function toast(msg, type='info') {
 }
 
 async function init() {
+  const timer = setTimeout(() => { sb.auth.signOut().catch(()=>{}); renderLogin(); }, 6000);
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       const profile = await getCurrentUser();
       if (profile && profile.role === 'student') {
+        clearTimeout(timer);
         state.user = profile;
         await Promise.all([loadContent(), loadActions()]);
         render(); return;
       }
-      await sb.auth.signOut();
+      sb.auth.signOut().catch(()=>{});
     }
-  } catch(e) {
-    await sb.auth.signOut();
-  }
+  } catch(e) {}
+  clearTimeout(timer);
   renderLogin();
 }
 

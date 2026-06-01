@@ -137,21 +137,23 @@ function toast(msg, type='success') {
 }
 
 async function init() {
+  // Safety net — show login after 6s no matter what
+  const timer = setTimeout(() => { sb.auth.signOut().catch(()=>{}); renderLogin(); }, 6000);
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       const profile = await getCurrentUser();
       if (profile && profile.role === 'super_admin') {
+        clearTimeout(timer);
         state.admin = profile;
         await loadAllData();
         renderAdmin();
         return;
       }
-      await sb.auth.signOut();
+      sb.auth.signOut().catch(()=>{});
     }
-  } catch(e) {
-    await sb.auth.signOut();
-  }
+  } catch(e) {}
+  clearTimeout(timer);
   renderLogin();
 }
 
