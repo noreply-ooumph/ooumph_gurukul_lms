@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OOUMPH - Teacher Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Roboto',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#0f0f0f;color:#f1f1f1;line-height:1.6}
+    .hidden{display:none!important}
+    .login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:linear-gradient(135deg,#0f0f0f 0%,#1a1a1a 100%)}
+    .login-box{background:#212121;border-radius:16px;padding:3rem;max-width:450px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.5);border:1px solid #303030}
+    .login-title{text-align:center;font-size:3rem;font-weight:900;color:#ff0000;margin-bottom:.5rem}
+    .login-subtitle{text-align:center;color:#aaa;margin-bottom:2rem;font-size:1.1rem}
+    .form-group{margin-bottom:1.5rem}
+    .form-group label{display:block;margin-bottom:.5rem;font-weight:500}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:.875rem;background:#0f0f0f;border:2px solid #303030;border-radius:8px;color:#f1f1f1;font-size:1rem;font-family:inherit;transition:border-color .2s}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#ff0000}
+    .form-group textarea{resize:vertical;min-height:100px}
+    .btn{padding:.875rem;width:100%;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:.5rem}
+    .btn-primary{background:#ff0000;color:#fff}
+    .btn-primary:hover{background:#cc0000;transform:translateY(-1px)}
+    .btn-secondary{background:#303030;color:#f1f1f1}
+    .btn-secondary:hover{background:#404040}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .error-text{color:#ff4444;font-size:.85rem;margin-top:.5rem;padding:.5rem;background:rgba(255,68,68,.1);border-radius:4px}
+    .navbar{background:#212121;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #303030;position:sticky;top:0;z-index:100}
+    .logo{font-size:1.5rem;font-weight:900;color:#ff0000;display:flex;align-items:center;gap:.5rem}
+    .track-badge{padding:.5rem 1rem;background:#ff0000;border-radius:8px;font-weight:600;font-size:.9rem}
+    .user-info{display:flex;align-items:center;gap:.75rem;padding:.5rem 1rem;background:#181818;border-radius:8px;cursor:pointer;position:relative}
+    .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff0000,#cc0000);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem}
+    .user-dropdown{position:absolute;top:100%;right:0;margin-top:.5rem;background:#212121;border:1px solid #303030;border-radius:8px;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.5);overflow:hidden;z-index:200}
+    .dropdown-header{padding:1rem;border-bottom:1px solid #303030;background:#181818}
+    .dropdown-email{color:#aaa;font-size:.85rem;margin-top:.25rem}
+    .dropdown-track{color:#ff0000;font-size:.85rem;margin-top:.25rem;font-weight:600}
+    .dropdown-item{padding:.75rem 1rem;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:.5rem}
+    .dropdown-item:hover{background:#181818}
+    .main-layout{display:flex;min-height:calc(100vh - 73px)}
+    .sidebar{width:240px;background:#212121;border-right:1px solid #303030;padding:1.5rem 0;flex-shrink:0}
+    .sidebar-item{padding:.875rem 1.5rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:all .2s;color:#aaa}
+    .sidebar-item:hover{background:#181818;color:#f1f1f1}
+    .sidebar-item.active{background:#181818;color:#ff0000;border-left:3px solid #ff0000}
+    .content{flex:1;padding:2rem;max-width:1400px;margin:0 auto;width:100%}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:3rem}
+    .stat-card{background:#212121;padding:2rem;border-radius:12px;border:1px solid #303030;transition:transform .2s}
+    .stat-card:hover{transform:translateY(-2px);border-color:#ff0000}
+    .stat-value{font-size:2.5rem;font-weight:900;color:#ff0000;margin-bottom:.5rem}
+    .stat-label{color:#aaa;font-size:1rem}
+    .content-grid{display:grid;gap:1.5rem}
+    .content-item{background:#212121;border-radius:12px;padding:1rem;display:flex;align-items:center;gap:1rem;border:1px solid #303030;transition:all .2s}
+    .content-item:hover{border-color:#ff0000}
+    .item-thumb{width:180px;height:100px;object-fit:cover;border-radius:8px;background:#181818;flex-shrink:0}
+    .item-info{flex:1}
+    .item-title{font-size:1.1rem;font-weight:600;margin-bottom:.5rem}
+    .item-meta{color:#aaa;font-size:.9rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center}
+    .item-badge{padding:.25rem .75rem;background:#303030;border-radius:12px;font-size:.8rem}
+    .item-badge.video{background:#ff0000}
+    .item-badge.pdf{background:#ff6b00}
+    .item-badge.image{background:#00a8ff}
+    .item-badge.csv{background:#00ff88;color:#000}
+    .item-actions{display:flex;gap:.5rem}
+    .icon-btn{background:none;border:none;font-size:1.3rem;cursor:pointer;padding:.5rem;border-radius:8px;transition:all .2s}
+    .icon-btn:hover{background:#303030}
+    .icon-btn.delete{color:#ff4444}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000;padding:2rem}
+    .modal-content{background:#212121;border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;padding:2rem;border:1px solid #303030}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .close-btn{background:none;border:none;color:#aaa;font-size:2rem;cursor:pointer;padding:0;line-height:1}
+    .close-btn:hover{color:#f1f1f1}
+    .upload-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid #303030}
+    .upload-tab{background:none;border:none;color:#aaa;padding:1rem 1.5rem;cursor:pointer;font-size:1rem;font-weight:600;border-bottom:3px solid transparent;transition:all .2s}
+    .upload-tab.active{color:#ff0000;border-bottom-color:#ff0000}
+    .file-upload-area{border:2px dashed #303030;border-radius:8px;padding:2rem;text-align:center;cursor:pointer;transition:all .2s}
+    .file-upload-area:hover,.file-upload-area.dragover{border-color:#ff0000;background:rgba(255,0,0,.05)}
+    .file-preview{margin-top:1rem;padding:.75rem;background:#181818;border-radius:8px;color:#3ea6ff;font-size:.9rem}
+    .modal-actions{display:flex;gap:1rem;margin-top:2rem}
+    .modal-actions .btn{flex:1}
+    .upload-progress{margin-top:1rem;background:#303030;border-radius:4px;overflow:hidden;height:6px}
+    .upload-progress-bar{height:100%;background:#ff0000;transition:width .3s}
+    .empty-state{text-align:center;padding:4rem 2rem;color:#aaa}
+    .empty-icon{font-size:4rem;margin-bottom:1rem}
+    .toast{position:fixed;bottom:2rem;right:2rem;padding:1rem 1.5rem;border-radius:8px;font-weight:600;z-index:9999;animation:slideIn .3s ease}
+    .toast.success{background:#00ff88;color:#000}
+    .toast.error{background:#ff4444;color:#fff}
+    @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @media(max-width:768px){.sidebar{width:60px}.sidebar-item span:last-child{display:none}.stats-grid{grid-template-columns:1fr}.item-thumb{width:120px;height:68px}}
+  </style>
+</head>
+<body>
+<div id="app"><div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#aaa;font-size:1.1rem">Loading...</div></div>
+<script src="js/supabase-config.js"></script>
+<script>
+const state = { teacher: null, page: 'dashboard', content: [], showDropdown: false, uploadModal: false };
+let uploadFile = null, uploadType = 'video';
+
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`; el.textContent = msg;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 3500);
+}
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const profile = await getCurrentUser();
+    if (profile && profile.role === 'teacher') {
+      state.teacher = profile;
+      await loadContent();
+      render(); return;
+    }
+  }
+  renderLogin();
+}
+
+async function loadContent() {
+  const { data } = await sb.from('content').select('*').eq('track', state.teacher.track).order('created_at', { ascending: false });
+  state.content = data || [];
+}
+
+async function doLogin(email, password) {
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return { success: false, message: error.message };
+  const profile = await getCurrentUser();
+  if (!profile || profile.role !== 'teacher') {
+    await sb.auth.signOut();
+    return { success: false, message: 'Not authorized as a teacher.' };
+  }
+  state.teacher = profile;
+  await loadContent();
+  return { success: true };
+}
+
+function renderLogin() {
+  document.getElementById('app').innerHTML = `
+    <div class="login-page">
+      <div class="login-box">
+        <h1 class="login-title">OOUMPH</h1>
+        <p class="login-subtitle">Teacher Portal</p>
+        <form id="loginForm">
+          <div class="form-group"><label>Teacher Email</label><input type="email" id="emailInput" placeholder="teacher@ooumph.com" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="passInput" placeholder="••••••••" required>
+            <div id="errorText" class="error-text hidden"></div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+        </form>
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid #303030;font-size:.85rem;color:#aaa;text-align:center">
+          <p>🎓 Teachers only — manage your assigned track</p>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Signing in...';
+    const result = await doLogin(document.getElementById('emailInput').value, document.getElementById('passInput').value);
+    if (result.success) { render(); return; }
+    const err = document.getElementById('errorText');
+    err.textContent = result.message; err.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = 'Sign In';
+  });
+}
+
+function render() {
+  const myContent = state.content;
+  const totalViews = myContent.reduce((s, c) => s + (c.views||0), 0);
+  const byType = { video: myContent.filter(c=>c.type==='video').length, pdf: myContent.filter(c=>c.type==='pdf').length, image: myContent.filter(c=>c.type==='image').length, csv: myContent.filter(c=>c.type==='csv').length };
+
+  document.getElementById('app').innerHTML = `
+    <nav class="navbar">
+      <div class="logo"><span>▶</span><span>OOUMPH TEACHER</span><span class="track-badge">${state.teacher.track}</span></div>
+      <div style="display:flex;gap:1rem;align-items:center">
+        <button class="btn btn-primary" id="openUploadBtn" style="width:auto;padding:.75rem 1.5rem">➕ Upload</button>
+        <div class="user-info" id="userBtn">
+          <div class="avatar">${state.teacher.full_name[0].toUpperCase()}</div>
+          <span>${state.teacher.full_name.split(' ')[0]}</span>
+          ${state.showDropdown ? `<div class="user-dropdown">
+            <div class="dropdown-header">
+              <div>${state.teacher.full_name}</div>
+              <div class="dropdown-email">${state.teacher.email}</div>
+              <div class="dropdown-track">📚 ${state.teacher.track}</div>
+            </div>
+            <div class="dropdown-item" id="logoutBtn">🚪 Sign Out</div>
+          </div>` : ''}
+        </div>
+      </div>
+    </nav>
+    <div class="main-layout">
+      <div class="sidebar">
+        <div class="sidebar-item ${state.page==='dashboard'?'active':''}" data-page="dashboard"><span>📊</span><span>Dashboard</span></div>
+        <div class="sidebar-item ${state.page==='videos'?'active':''}" data-page="videos"><span>🎥</span><span>Videos</span></div>
+        <div class="sidebar-item ${state.page==='files'?'active':''}" data-page="files"><span>📁</span><span>Files</span></div>
+      </div>
+      <div class="content">${renderPageContent(myContent, totalViews, byType)}</div>
+    </div>
+    ${state.uploadModal ? renderUploadModal() : ''}`;
+  setupHandlers();
+}
+
+function renderPageContent(content, views, byType) {
+  if (state.page === 'dashboard') return `
+    <div style="margin-bottom:2rem"><h1 style="font-size:2rem;margin-bottom:.5rem">${state.teacher.track} Track</h1><p style="color:#aaa">Content management for your track</p></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${content.length}</div><div class="stat-label">Total Content</div></div>
+      <div class="stat-card"><div class="stat-value">${byType.video}</div><div class="stat-label">Videos</div></div>
+      <div class="stat-card"><div class="stat-value">${byType.pdf+byType.image+byType.csv}</div><div class="stat-label">Study Materials</div></div>
+      <div class="stat-card"><div class="stat-value">${views}</div><div class="stat-label">Total Views</div></div>
+    </div>
+    <h2 style="font-size:1.5rem;margin-bottom:1rem">Recent Uploads</h2>
+    ${renderList(content.slice(0, 10))}`;
+
+  if (state.page === 'videos') {
+    const vids = content.filter(c=>c.type==='video');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem">
+      <h1 style="font-size:2rem">Videos (${vids.length})</h1>
+      <button class="btn btn-primary" id="openUploadBtn2" style="width:auto;padding:.75rem 1.5rem">➕ Upload Video</button>
+    </div>${renderList(vids)}`;
+  }
+
+  if (state.page === 'files') {
+    const files = content.filter(c=>c.type!=='video');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem">
+      <h1 style="font-size:2rem">Study Materials (${files.length})</h1>
+      <button class="btn btn-primary" id="openUploadBtn2" style="width:auto;padding:.75rem 1.5rem">➕ Upload File</button>
+    </div>${renderList(files)}`;
+  }
+  return '';
+}
+
+function renderList(items) {
+  if (!items.length) return `<div class="empty-state"><div class="empty-icon">📭</div><h2>No content yet</h2><p>Upload your first content for ${state.teacher.track}</p></div>`;
+  return `<div class="content-grid">${items.map(item => `
+    <div class="content-item">
+      <img src="${item.thumbnail_url || thumbPlaceholder(item.type)}" class="item-thumb" alt="${item.title}">
+      <div class="item-info">
+        <div class="item-title">${item.title}</div>
+        <div class="item-meta">
+          <span class="item-badge ${item.type}">${item.type.toUpperCase()}</span>
+          <span>${item.category||''}</span>
+          <span>•</span><span>${item.views||0} views</span>
+          <span>•</span><span>${item.upload_date||''}</span>
+        </div>
+      </div>
+      <div class="item-actions"><button class="icon-btn delete" data-del="${item.id}" data-url="${item.url}" title="Delete">🗑️</button></div>
+    </div>`).join('')}</div>`;
+}
+
+function thumbPlaceholder(type) {
+  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='100'%3E%3Crect fill='%23212121' width='180' height='100'/%3E%3Ctext x='50%25' y='50%25' fill='%23ff0000' font-size='16' text-anchor='middle' dy='.3em' font-family='Arial'%3E${type.toUpperCase()}%3C/text%3E%3C/svg%3E`;
+}
+
+function renderUploadModal() {
+  return `<div class="modal" id="modalOverlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Upload to ${state.teacher.track}</h2>
+        <button class="close-btn" id="closeUpload">×</button>
+      </div>
+      <div class="upload-tabs">
+        ${['video','pdf','image','csv'].map(t=>`<button class="upload-tab ${uploadType===t?'active':''}" data-type="${t}">${t==='video'?'🎥 Video':t==='pdf'?'📄 PDF':t==='image'?'🖼️ Image':'📊 CSV'}</button>`).join('')}
+      </div>
+      <form id="uploadForm">
+        <div class="form-group">
+          <label>Upload File</label>
+          <div class="file-upload-area" id="dropZone">
+            <p style="font-size:2rem;margin-bottom:.5rem">📁</p>
+            <p style="font-weight:500">Click to browse or drag & drop</p>
+            <p style="font-size:.85rem;color:#aaa;margin-top:.5rem">Max 500MB</p>
+          </div>
+          <input type="file" id="fileInput" style="display:none" accept="*/*">
+          <div id="filePreview" class="file-preview hidden"></div>
+          <div class="upload-progress hidden" id="progressWrap"><div class="upload-progress-bar" id="progressBar" style="width:0%"></div></div>
+        </div>
+        <div class="form-group"><label>Title *</label><input type="text" id="titleInput" required placeholder="Content title"></div>
+        <div class="form-group"><label>Description</label><textarea id="descInput" placeholder="Content description"></textarea></div>
+        <div class="form-group"><label>Category</label><input type="text" id="categoryInput" placeholder="e.g., Introduction, Advanced..."></div>
+        <div id="uploadError" class="error-text hidden"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary" id="uploadBtn">⬆️ Upload</button>
+          <button type="button" class="btn btn-secondary" id="cancelUpload">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+
+function setupHandlers() {
+  document.querySelectorAll('[data-page]').forEach(el => el.addEventListener('click', () => { state.page = el.dataset.page; render(); }));
+  document.getElementById('userBtn')?.addEventListener('click', e => { e.stopPropagation(); state.showDropdown = !state.showDropdown; render(); });
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => { await signOut(); });
+  document.addEventListener('click', e => { if (state.showDropdown && !e.target.closest('.user-info')) { state.showDropdown = false; render(); } }, { once: true });
+
+  const openUpload = () => { state.uploadModal = true; render(); };
+  document.getElementById('openUploadBtn')?.addEventListener('click', openUpload);
+  document.getElementById('openUploadBtn2')?.addEventListener('click', openUpload);
+
+  document.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', async () => {
+    if (!confirm('Delete this content?')) return;
+    const { error } = await sb.from('content').delete().eq('id', el.dataset.del);
+    if (error) { toast('Error: ' + error.message, 'error'); return; }
+    const path = el.dataset.url?.split('/content/')[1];
+    if (path) await sb.storage.from('content').remove([path]);
+    await loadContent(); toast('Content deleted'); render();
+  }));
+
+  if (!state.uploadModal) return;
+
+  document.getElementById('closeUpload')?.addEventListener('click', () => { state.uploadModal = false; uploadFile = null; render(); });
+  document.getElementById('cancelUpload')?.addEventListener('click', () => { state.uploadModal = false; uploadFile = null; render(); });
+  document.getElementById('modalOverlay')?.addEventListener('click', e => { if (e.target.id==='modalOverlay') { state.uploadModal = false; uploadFile = null; render(); } });
+
+  document.querySelectorAll('[data-type]').forEach(el => el.addEventListener('click', () => { uploadType = el.dataset.type; render(); }));
+
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+
+  dropZone?.addEventListener('click', () => fileInput.click());
+  dropZone?.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone?.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone?.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+  fileInput?.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+  document.getElementById('uploadForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!uploadFile) { showUploadError('Please select a file.'); return; }
+    const title = document.getElementById('titleInput').value.trim();
+    if (!title) { showUploadError('Title is required.'); return; }
+
+    const btn = document.getElementById('uploadBtn');
+    btn.disabled = true; btn.textContent = 'Uploading...';
+    document.getElementById('progressWrap')?.classList.remove('hidden');
+
+    const ext = uploadFile.name.split('.').pop();
+    const filePath = `${state.teacher.id}/${Date.now()}.${ext}`;
+
+    const { data: storageData, error: storageErr } = await sb.storage.from('content').upload(filePath, uploadFile, { upsert: false, contentType: uploadFile.type });
+    if (storageErr) { showUploadError('Upload failed: ' + storageErr.message); btn.disabled = false; btn.textContent = '⬆️ Upload'; return; }
+
+    const { data: { publicUrl } } = sb.storage.from('content').getPublicUrl(filePath);
+
+    const { error: dbErr } = await sb.from('content').insert({
+      title, description: document.getElementById('descInput').value,
+      category: document.getElementById('categoryInput').value || state.teacher.track,
+      type: uploadType, url: publicUrl, thumbnail_url: uploadType === 'image' ? publicUrl : null,
+      track: state.teacher.track, teacher_id: state.teacher.id
+    });
+
+    if (dbErr) { showUploadError('DB error: ' + dbErr.message); btn.disabled = false; btn.textContent = '⬆️ Upload'; return; }
+
+    state.uploadModal = false; uploadFile = null;
+    await loadContent(); toast('Content uploaded successfully!'); render();
+  });
+}
+
+function setFile(file) {
+  uploadFile = file;
+  const preview = document.getElementById('filePreview');
+  preview.textContent = `✓ ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+  preview.classList.remove('hidden');
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (['mp4','webm','mov'].includes(ext)) uploadType = 'video';
+  else if (ext === 'pdf') uploadType = 'pdf';
+  else if (['jpg','jpeg','png','gif','webp'].includes(ext)) uploadType = 'image';
+  else if (ext === 'csv') uploadType = 'csv';
+}
+
+function showUploadError(msg) {
+  const el = document.getElementById('uploadError');
+  if (el) { el.textContent = msg; el.classList.remove('hidden'); }
+}
+
+init();
+</script>
+</body>
+</html>

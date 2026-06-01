@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OOUMPH - Super Admin Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Roboto',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#0f0f0f;color:#f1f1f1;line-height:1.6}
+    .hidden{display:none!important}
+    .login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:2rem;background:linear-gradient(135deg,#0f0f0f 0%,#1a1a1a 100%)}
+    .login-box{background:#212121;border-radius:16px;padding:3rem;max-width:450px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.5);border:2px solid #ff0000}
+    .login-title{text-align:center;font-size:3rem;font-weight:900;color:#ff0000;margin-bottom:.5rem}
+    .login-subtitle{text-align:center;color:#aaa;margin-bottom:2rem;font-size:1.1rem}
+    .form-group{margin-bottom:1.5rem}
+    .form-group label{display:block;margin-bottom:.5rem;font-weight:500}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:.875rem;background:#0f0f0f;border:2px solid #303030;border-radius:8px;color:#f1f1f1;font-size:1rem;font-family:inherit;transition:border-color .2s}
+    .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#ff0000}
+    .form-group textarea{resize:vertical;min-height:100px}
+    .btn{padding:.875rem;width:100%;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:.5rem}
+    .btn-primary{background:#ff0000;color:#fff}
+    .btn-primary:hover{background:#cc0000;transform:translateY(-1px)}
+    .btn-secondary{background:#303030;color:#f1f1f1}
+    .btn-secondary:hover{background:#404040}
+    .btn-danger{background:#ff4444;color:#fff}
+    .btn-danger:hover{background:#cc0000}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .error-text{color:#ff4444;font-size:.85rem;margin-top:.5rem;padding:.5rem;background:rgba(255,68,68,.1);border-radius:4px}
+    .navbar{background:#212121;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ff0000;position:sticky;top:0;z-index:100}
+    .logo{font-size:1.5rem;font-weight:900;color:#ff0000;display:flex;align-items:center;gap:.5rem}
+    .admin-badge{padding:.5rem 1rem;background:linear-gradient(135deg,#ff0000,#cc0000);border-radius:8px;font-weight:600;font-size:.9rem}
+    .user-info{display:flex;align-items:center;gap:.75rem;padding:.5rem 1rem;background:#181818;border-radius:8px;cursor:pointer;position:relative;border:1px solid #ff0000}
+    .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff0000,#cc0000);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem}
+    .user-dropdown{position:absolute;top:100%;right:0;margin-top:.5rem;background:#212121;border:1px solid #303030;border-radius:8px;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,.5);overflow:hidden;z-index:200}
+    .dropdown-header{padding:1rem;border-bottom:1px solid #303030;background:#181818}
+    .dropdown-email{color:#aaa;font-size:.85rem;margin-top:.25rem}
+    .dropdown-role{color:#ff0000;font-size:.85rem;margin-top:.25rem;font-weight:600}
+    .dropdown-item{padding:.75rem 1rem;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:.5rem}
+    .dropdown-item:hover{background:#181818}
+    .main-layout{display:flex;min-height:calc(100vh - 73px)}
+    .sidebar{width:240px;background:#212121;border-right:2px solid #303030;padding:1.5rem 0;flex-shrink:0}
+    .sidebar-item{padding:.875rem 1.5rem;display:flex;align-items:center;gap:1rem;cursor:pointer;transition:all .2s;color:#aaa}
+    .sidebar-item:hover{background:#181818;color:#f1f1f1}
+    .sidebar-item.active{background:#181818;color:#ff0000;border-left:3px solid #ff0000}
+    .sidebar-divider{height:1px;background:#303030;margin:1rem 0}
+    .content{flex:1;padding:2rem;max-width:1600px;margin:0 auto;width:100%;overflow-y:auto}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem;margin-bottom:3rem}
+    .stat-card{background:linear-gradient(135deg,#212121,#181818);padding:2rem;border-radius:12px;border:2px solid #303030;transition:transform .2s}
+    .stat-card:hover{transform:translateY(-2px);border-color:#ff0000}
+    .stat-value{font-size:2.5rem;font-weight:900;color:#ff0000;margin-bottom:.5rem}
+    .stat-label{color:#aaa;font-size:1rem}
+    .tabs{display:flex;gap:1rem;margin-bottom:2rem;border-bottom:2px solid #303030;overflow-x:auto}
+    .tab{padding:1rem 2rem;background:none;border:none;color:#aaa;cursor:pointer;font-size:1.1rem;font-weight:600;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap}
+    .tab:hover{color:#f1f1f1;background:#181818}
+    .tab.active{color:#ff0000;border-bottom-color:#ff0000;background:#181818}
+    .controls{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap;align-items:center}
+    .search-box{flex:1;min-width:300px;display:flex;background:#212121;border:2px solid #303030;border-radius:8px;padding:.5rem 1rem}
+    .search-input{flex:1;border:none;background:none;color:#f1f1f1;font-size:1rem;outline:none}
+    .filter-select{padding:.75rem;background:#212121;border:2px solid #303030;border-radius:8px;color:#f1f1f1;font-size:1rem;cursor:pointer}
+    .filter-select:focus{outline:none;border-color:#ff0000}
+    .table-container{background:#212121;border-radius:12px;overflow-x:auto;border:1px solid #303030}
+    .table{width:100%;border-collapse:collapse;min-width:800px}
+    .table thead{background:#181818}
+    .table th{padding:1rem;text-align:left;font-weight:600;color:#ff0000;border-bottom:2px solid #303030}
+    .table td{padding:1rem;border-bottom:1px solid #303030}
+    .table tbody tr{transition:background .2s}
+    .table tbody tr:hover{background:#181818}
+    .track-badge{padding:.25rem .75rem;background:#303030;border-radius:12px;font-size:.85rem;display:inline-block}
+    .track-badge.Agriculture{background:#00ff88;color:#000}
+    .track-badge.Healthcare{background:#00a8ff;color:#fff}
+    .track-badge.Education{background:#ff6b00;color:#fff}
+    .track-badge.Commerce{background:#ffdd00;color:#000}
+    .track-badge.Governance{background:#9b59b6;color:#fff}
+    .track-badge.Media{background:#e74c3c;color:#fff}
+    .track-badge.Telecom{background:#3498db;color:#fff}
+    .track-badge.Engineering{background:#95a5a6;color:#fff}
+    .track-badge.Energy{background:#f39c12;color:#fff}
+    .content-badge{padding:.25rem .75rem;border-radius:12px;font-size:.85rem;display:inline-block;font-weight:600}
+    .content-badge.video{background:#ff0000;color:#fff}
+    .content-badge.pdf{background:#ff6b00;color:#fff}
+    .content-badge.image{background:#00a8ff;color:#fff}
+    .content-badge.csv{background:#00ff88;color:#000}
+    .content-grid{display:grid;gap:1.5rem}
+    .content-item{background:#212121;border-radius:12px;padding:1rem;display:flex;align-items:center;gap:1rem;border:1px solid #303030;transition:all .2s}
+    .content-item:hover{border-color:#ff0000}
+    .item-thumb{width:180px;height:100px;object-fit:cover;border-radius:8px;background:#181818;flex-shrink:0}
+    .item-info{flex:1}
+    .item-title{font-size:1.1rem;font-weight:600;margin-bottom:.5rem}
+    .item-meta{color:#aaa;font-size:.9rem;display:flex;gap:1rem;flex-wrap:wrap}
+    .action-btns{display:flex;gap:.5rem}
+    .icon-btn{background:none;border:none;font-size:1.2rem;cursor:pointer;padding:.5rem;border-radius:8px;transition:all .2s}
+    .icon-btn:hover{background:#303030}
+    .icon-btn.delete{color:#ff4444}
+    .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:1000;padding:2rem}
+    .modal-content{background:#212121;border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;padding:2rem;border:2px solid #ff0000}
+    .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem}
+    .close-btn{background:none;border:none;color:#aaa;font-size:2rem;cursor:pointer;padding:0;line-height:1}
+    .close-btn:hover{color:#f1f1f1}
+    .modal-actions{display:flex;gap:1rem;margin-top:2rem}
+    .modal-actions .btn{flex:1}
+    .empty-state{text-align:center;padding:4rem 2rem}
+    .empty-state-icon{font-size:4rem;margin-bottom:1rem}
+    .empty-state-title{font-size:1.5rem;margin-bottom:.5rem}
+    .empty-state-text{color:#aaa}
+    .loading{text-align:center;padding:3rem;color:#aaa;font-size:1.1rem}
+    .toast{position:fixed;bottom:2rem;right:2rem;padding:1rem 1.5rem;border-radius:8px;font-weight:600;z-index:9999;animation:slideIn .3s ease}
+    .toast.success{background:#00ff88;color:#000}
+    .toast.error{background:#ff4444;color:#fff}
+    @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+    @media(max-width:768px){.sidebar{width:60px}.sidebar-item span:last-child{display:none}.stats-grid{grid-template-columns:1fr}.controls{flex-direction:column}.search-box{min-width:100%}.content-item{flex-direction:column}.item-thumb{width:100%;height:200px}}
+  </style>
+</head>
+<body>
+<div id="app"><div class="loading">Loading...</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script>
+const TRACKS = ['Agriculture','Healthcare','Education','Commerce','Governance','Media','Telecom','Engineering','Energy'];
+
+const state = {
+  admin: null,
+  page: 'dashboard',
+  section: 'teachers',
+  teachers: [], students: [], content: [],
+  showDropdown: false,
+  searchQuery: '', selectedTrack: 'All', selectedContentType: 'All',
+  editingItem: null, loading: false
+};
+
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const profile = await getCurrentUser();
+    if (profile && profile.role === 'super_admin') {
+      state.admin = profile;
+      await loadAllData();
+      renderAdmin();
+      return;
+    }
+  }
+  renderLogin();
+}
+
+async function loadAllData() {
+  const [{ data: teachers }, { data: students }, { data: content }] = await Promise.all([
+    sb.from('profiles').select('*').eq('role', 'teacher').order('full_name'),
+    sb.from('profiles').select('*').eq('role', 'student').order('full_name'),
+    sb.from('content').select('*').order('created_at', { ascending: false })
+  ]);
+  state.teachers = teachers || [];
+  state.students = students || [];
+  state.content = content || [];
+}
+
+async function doLogin(email, password) {
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return { success: false, message: error.message };
+  const profile = await getCurrentUser();
+  if (!profile || profile.role !== 'super_admin') {
+    await sb.auth.signOut();
+    return { success: false, message: 'Unauthorized. Super Admin access only.' };
+  }
+  state.admin = profile;
+  await loadAllData();
+  return { success: true };
+}
+
+function renderLogin() {
+  document.getElementById('app').innerHTML = `
+    <div class="login-page">
+      <div class="login-box">
+        <h1 class="login-title">🔐 SUPER ADMIN</h1>
+        <p class="login-subtitle">Administrator Portal</p>
+        <form id="loginForm">
+          <div class="form-group">
+            <label>Admin Email</label>
+            <input type="email" id="emailInput" placeholder="admin@ooumph.com" required>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="passInput" placeholder="••••••••" required>
+            <div id="errorText" class="error-text hidden"></div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="loginBtn">🔓 Sign In</button>
+        </form>
+        <div style="margin-top:2rem;padding-top:1.5rem;border-top:1px solid #303030;font-size:.85rem;color:#aaa;text-align:center">
+          <p>⚠️ Super Admin Access Only</p>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; btn.textContent = 'Signing in...';
+    const result = await doLogin(document.getElementById('emailInput').value, document.getElementById('passInput').value);
+    if (result.success) { renderAdmin(); }
+    else {
+      const err = document.getElementById('errorText');
+      err.textContent = result.message; err.classList.remove('hidden');
+      btn.disabled = false; btn.textContent = '🔓 Sign In';
+    }
+  });
+}
+
+function renderAdmin() {
+  const tByTrack = {}, sByTrack = {}, cByTrack = {};
+  TRACKS.forEach(t => {
+    tByTrack[t] = state.teachers.filter(x => x.track === t).length;
+    sByTrack[t] = state.students.filter(x => x.track === t).length;
+    cByTrack[t] = state.content.filter(x => x.track === t).length;
+  });
+  document.getElementById('app').innerHTML = `
+    <nav class="navbar">
+      <div class="logo"><span>🔐</span><span>SUPER ADMIN</span><span class="admin-badge">FULL ACCESS</span></div>
+      <div class="user-info" id="userBtn">
+        <div class="avatar">${state.admin.full_name[0].toUpperCase()}</div>
+        <span>${state.admin.full_name.split(' ')[0]}</span>
+        ${state.showDropdown ? `<div class="user-dropdown">
+          <div class="dropdown-header">
+            <div>${state.admin.full_name}</div>
+            <div class="dropdown-email">${state.admin.email}</div>
+            <div class="dropdown-role">🔐 Super Administrator</div>
+          </div>
+          <div class="dropdown-item" id="logoutBtn">🚪 Sign Out</div>
+        </div>` : ''}
+      </div>
+    </nav>
+    <div class="main-layout">
+      <div class="sidebar">
+        <div class="sidebar-item ${state.page==='dashboard'?'active':''}" data-page="dashboard"><span>📊</span><span>Dashboard</span></div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-item ${state.page==='teachers'?'active':''}" data-page="teachers"><span>🎓</span><span>Teachers</span></div>
+        <div class="sidebar-item ${state.page==='students'?'active':''}" data-page="students"><span>📚</span><span>Students</span></div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-item ${state.page==='content'?'active':''}" data-page="content"><span>📁</span><span>Content</span></div>
+      </div>
+      <div class="content" id="mainContent">${renderPageContent(tByTrack, sByTrack, cByTrack)}</div>
+    </div>
+    ${state.editingItem ? renderModal() : ''}`;
+  setupAdminHandlers();
+}
+
+function renderPageContent(tBT, sBT, cBT) {
+  if (state.page === 'dashboard') return renderDashboard(tBT, sBT, cBT);
+  if (state.page === 'teachers' || state.page === 'students') return renderUserMgmt();
+  if (state.page === 'content') return renderContentMgmt();
+  return '';
+}
+
+function renderDashboard(tBT, sBT, cBT) {
+  return `
+    <div style="margin-bottom:2rem"><h1 style="font-size:2rem;margin-bottom:.5rem">Super Admin Dashboard</h1><p style="color:#aaa">Full system control and analytics</p></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value">${state.teachers.length}</div><div class="stat-label">Total Teachers</div></div>
+      <div class="stat-card"><div class="stat-value">${state.students.length}</div><div class="stat-label">Total Students</div></div>
+      <div class="stat-card"><div class="stat-value">${state.content.length}</div><div class="stat-label">Total Content</div></div>
+      <div class="stat-card"><div class="stat-value">${TRACKS.length}</div><div class="stat-label">Active Tracks</div></div>
+    </div>
+    <h2 style="font-size:1.5rem;margin-bottom:1rem">Distribution by Track</h2>
+    <div class="stats-grid">
+      ${TRACKS.map(t => `<div class="stat-card">
+        <div style="font-size:1.25rem;font-weight:700;color:#ff0000;margin-bottom:.5rem">${tBT[t]} / ${sBT[t]} / ${cBT[t]}</div>
+        <div class="stat-label">${t}</div>
+        <div style="color:#aaa;font-size:.85rem;margin-top:.25rem">Teachers / Students / Content</div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function getFilteredUsers() {
+  let items = state.page === 'teachers' ? state.teachers : state.students;
+  if (state.selectedTrack !== 'All') items = items.filter(i => i.track === state.selectedTrack);
+  if (state.searchQuery) items = items.filter(i =>
+    i.full_name.toLowerCase().includes(state.searchQuery) ||
+    i.email.toLowerCase().includes(state.searchQuery) ||
+    (i.phone||'').includes(state.searchQuery));
+  return items;
+}
+
+function getFilteredContent() {
+  let items = state.content;
+  if (state.selectedTrack !== 'All') items = items.filter(i => i.track === state.selectedTrack);
+  if (state.selectedContentType !== 'All') items = items.filter(i => i.type === state.selectedContentType);
+  if (state.searchQuery) items = items.filter(i =>
+    i.title.toLowerCase().includes(state.searchQuery) ||
+    (i.description||'').toLowerCase().includes(state.searchQuery));
+  return items;
+}
+
+function renderUserMgmt() {
+  const items = getFilteredUsers();
+  const label = state.page === 'teachers' ? 'Teacher' : 'Student';
+  return `
+    <div style="margin-bottom:2rem"><h1 style="font-size:2rem;margin-bottom:.5rem">User Management</h1><p style="color:#aaa">Manage teachers and students</p></div>
+    <div class="tabs">
+      <button class="tab ${state.page==='teachers'?'active':''}" data-page="teachers">🎓 Teachers (${state.teachers.length})</button>
+      <button class="tab ${state.page==='students'?'active':''}" data-page="students">📚 Students (${state.students.length})</button>
+    </div>
+    <div class="controls">
+      <div class="search-box"><input class="search-input" id="searchInput" placeholder="Search name, email, phone..." value="${state.searchQuery}"><span style="color:#aaa">🔍</span></div>
+      <select class="filter-select" id="trackFilter">
+        <option value="All" ${state.selectedTrack==='All'?'selected':''}>All Tracks</option>
+        ${TRACKS.map(t => `<option value="${t}" ${state.selectedTrack===t?'selected':''}>${t}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" id="addUserBtn" style="width:auto;padding:.75rem 1.5rem">➕ Add ${label}</button>
+    </div>
+    ${items.length === 0 ? `<div class="empty-state"><div class="empty-state-icon">${state.page==='teachers'?'🎓':'📚'}</div><h2 class="empty-state-title">No ${state.page} found</h2><p class="empty-state-text">Adjust filters or add new users</p></div>` : `
+    <div class="table-container"><table class="table">
+      <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Qualification</th><th>Track</th><th>Actions</th></tr></thead>
+      <tbody>${items.map(item => `<tr>
+        <td>${item.full_name}</td><td>${item.email}</td><td>${item.phone||'-'}</td>
+        <td>${item.qualification||'-'}</td>
+        <td><span class="track-badge ${item.track||''}">${item.track||'-'}</span></td>
+        <td><div class="action-btns">
+          <button class="icon-btn" data-edit="${item.id}" title="Edit">✏️</button>
+          <button class="icon-btn delete" data-del="${item.id}" data-email="${item.email}" title="Delete">🗑️</button>
+        </div></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`}`;
+}
+
+function renderContentMgmt() {
+  const items = getFilteredContent();
+  const cByType = { video: state.content.filter(c=>c.type==='video').length, pdf: state.content.filter(c=>c.type==='pdf').length, image: state.content.filter(c=>c.type==='image').length, csv: state.content.filter(c=>c.type==='csv').length };
+  return `
+    <div style="margin-bottom:2rem"><h1 style="font-size:2rem;margin-bottom:.5rem">Content Management</h1><p style="color:#aaa">Manage all content across all tracks</p></div>
+    <div class="tabs">
+      ${['All','video','pdf','image','csv'].map(t => `<button class="tab ${state.selectedContentType===t?'active':''}" data-ctype="${t}">${t==='All'?`📁 All (${state.content.length})`:t==='video'?`🎥 Videos (${cByType.video})`:t==='pdf'?`📄 PDFs (${cByType.pdf})`:t==='image'?`🖼️ Images (${cByType.image})`:`📊 CSV (${cByType.csv})`}</button>`).join('')}
+    </div>
+    <div class="controls">
+      <div class="search-box"><input class="search-input" id="searchInput" placeholder="Search title, description..." value="${state.searchQuery}"><span style="color:#aaa">🔍</span></div>
+      <select class="filter-select" id="trackFilter">
+        <option value="All" ${state.selectedTrack==='All'?'selected':''}>All Tracks</option>
+        ${TRACKS.map(t=>`<option value="${t}" ${state.selectedTrack===t?'selected':''}>${t}</option>`).join('')}
+      </select>
+    </div>
+    ${items.length === 0 ? `<div class="empty-state"><div class="empty-state-icon">📁</div><h2 class="empty-state-title">No content found</h2><p class="empty-state-text">Adjust filters or teachers can upload content</p></div>` : `
+    <div class="content-grid">${items.map(item => `<div class="content-item">
+      <img src="${item.thumbnail_url||'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22100%22%3E%3Crect fill=%22%23212121%22 width=%22180%22 height=%22100%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 fill=%22%23ff0000%22 font-size=%2216%22 text-anchor=%22middle%22 dy=%22.3em%22%3E'+item.type.toUpperCase()+'%3C/text%3E%3C/svg%3E'}" class="item-thumb">
+      <div class="item-info">
+        <div class="item-title">${item.title}</div>
+        <div class="item-meta">
+          <span class="content-badge ${item.type}">${item.type.toUpperCase()}</span>
+          <span class="track-badge ${item.track}">${item.track}</span>
+          <span>${item.category||''}</span>
+          <span>•</span><span>${item.views||0} views</span>
+          <span>•</span><span>${item.upload_date||''}</span>
+        </div>
+      </div>
+      <div class="action-btns"><button class="icon-btn delete" data-delcontent="${item.id}" title="Delete">🗑️</button></div>
+    </div>`).join('')}</div>`}`;
+}
+
+function renderModal() {
+  const isEdit = !!state.editingItem.id;
+  const label = state.page === 'teachers' ? 'Teacher' : 'Student';
+  const trackKey = state.page === 'teachers' ? 'track' : 'track';
+  return `<div class="modal" id="modalOverlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>${isEdit ? 'Edit' : 'Add'} ${label}</h2>
+        <button class="close-btn" id="closeModal">×</button>
+      </div>
+      <form id="userForm">
+        <div class="form-group"><label>Full Name</label><input type="text" name="full_name" value="${state.editingItem.full_name||''}" required></div>
+        <div class="form-group"><label>Email Address</label><input type="email" name="email" value="${state.editingItem.email||''}" ${isEdit?'readonly':''}required></div>
+        ${!isEdit ? `<div class="form-group"><label>Password</label><input type="password" name="password" placeholder="Min 6 characters" required minlength="6"></div>` : ''}
+        <div class="form-group"><label>Phone Number</label><input type="tel" name="phone" value="${state.editingItem.phone||''}"></div>
+        <div class="form-group"><label>Educational Qualification</label><input type="text" name="qualification" value="${state.editingItem.qualification||''}"></div>
+        <div class="form-group"><label>${state.page==='teachers'?'Assigned':'Preferred'} DAO Track</label>
+          <select name="track" required>
+            <option value="">-- Select Track --</option>
+            ${TRACKS.map(t=>`<option value="${t}" ${state.editingItem.track===t?'selected':''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div id="formError" class="error-text hidden"></div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary" id="saveBtn">${isEdit?'💾 Save Changes':'➕ Add User'}</button>
+          <button type="button" class="btn btn-secondary" id="cancelModal">✕ Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>`;
+}
+
+function setupAdminHandlers() {
+  document.querySelectorAll('[data-page]').forEach(el => el.addEventListener('click', () => {
+    state.page = el.dataset.page;
+    if (el.dataset.page === 'teachers') state.section = 'teachers';
+    if (el.dataset.page === 'students') state.section = 'students';
+    state.searchQuery = ''; state.selectedTrack = 'All'; state.selectedContentType = 'All';
+    renderAdmin();
+  }));
+
+  document.getElementById('userBtn')?.addEventListener('click', e => { e.stopPropagation(); state.showDropdown = !state.showDropdown; renderAdmin(); });
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => { await signOut(); });
+  document.addEventListener('click', () => { if (state.showDropdown) { state.showDropdown = false; renderAdmin(); } }, { once: true });
+
+  document.getElementById('searchInput')?.addEventListener('input', e => { state.searchQuery = e.target.value.toLowerCase(); document.getElementById('mainContent').innerHTML = renderPageContent({},{},{}); setupPageHandlers(); });
+  document.getElementById('trackFilter')?.addEventListener('change', e => { state.selectedTrack = e.target.value; renderAdmin(); });
+
+  document.querySelectorAll('[data-ctype]').forEach(el => el.addEventListener('click', () => { state.selectedContentType = el.dataset.ctype; renderAdmin(); }));
+
+  document.getElementById('addUserBtn')?.addEventListener('click', () => {
+    state.editingItem = { id: null, full_name:'', email:'', phone:'', qualification:'', track:'' };
+    renderAdmin();
+  });
+
+  document.querySelectorAll('[data-edit]').forEach(el => el.addEventListener('click', () => {
+    const items = state.page === 'teachers' ? state.teachers : state.students;
+    state.editingItem = { ...items.find(i => i.id === el.dataset.edit) };
+    renderAdmin();
+  }));
+
+  document.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', async () => {
+    if (!confirm('Delete this user? This cannot be undone.')) return;
+    const { error } = await sb.from('profiles').delete().eq('id', el.dataset.del);
+    if (error) { toast('Error deleting user: ' + error.message, 'error'); return; }
+    await loadAllData(); toast('User deleted'); renderAdmin();
+  }));
+
+  document.querySelectorAll('[data-delcontent]').forEach(el => el.addEventListener('click', async () => {
+    if (!confirm('Delete this content? Cannot be undone.')) return;
+    const { error } = await sb.from('content').delete().eq('id', el.dataset.delcontent);
+    if (error) { toast('Error: ' + error.message, 'error'); return; }
+    await loadAllData(); toast('Content deleted'); renderAdmin();
+  }));
+
+  document.getElementById('closeModal')?.addEventListener('click', () => { state.editingItem = null; renderAdmin(); });
+  document.getElementById('cancelModal')?.addEventListener('click', () => { state.editingItem = null; renderAdmin(); });
+  document.getElementById('modalOverlay')?.addEventListener('click', e => { if (e.target.id === 'modalOverlay') { state.editingItem = null; renderAdmin(); } });
+
+  document.getElementById('userForm')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    const fd = new FormData(e.target);
+    const isEdit = !!state.editingItem.id;
+    const role = state.page === 'teachers' ? 'teacher' : 'student';
+
+    if (!isEdit) {
+      const { data, error } = await sb.auth.admin ?
+        { data: null, error: { message: 'Use Supabase dashboard to create users or set up edge function.' } } :
+        await sb.auth.signUp({ email: fd.get('email'), password: fd.get('password'), options: { data: { full_name: fd.get('full_name'), role } } });
+
+      if (error) {
+        document.getElementById('formError').textContent = 'Note: User creation requires Supabase Admin API or invite flow. Update profile directly if user exists.';
+        document.getElementById('formError').classList.remove('hidden');
+        btn.disabled = false; btn.textContent = '➕ Add User';
+        return;
+      }
+    }
+
+    const updates = { full_name: fd.get('full_name'), phone: fd.get('phone'), qualification: fd.get('qualification'), track: fd.get('track'), role };
+    if (isEdit) {
+      const { error } = await sb.from('profiles').update(updates).eq('id', state.editingItem.id);
+      if (error) { toast('Error: ' + error.message, 'error'); btn.disabled = false; btn.textContent = '💾 Save Changes'; return; }
+      toast('User updated');
+    }
+    state.editingItem = null;
+    await loadAllData(); renderAdmin();
+  });
+}
+
+function setupPageHandlers() {
+  document.getElementById('trackFilter')?.addEventListener('change', e => { state.selectedTrack = e.target.value; renderAdmin(); });
+}
+
+init();
+</script>
+</body>
+</html>
