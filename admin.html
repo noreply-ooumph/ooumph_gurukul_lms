@@ -137,15 +137,20 @@ function toast(msg, type='success') {
 }
 
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    const profile = await getCurrentUser();
-    if (profile && profile.role === 'super_admin') {
-      state.admin = profile;
-      await loadAllData();
-      renderAdmin();
-      return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      const profile = await getCurrentUser();
+      if (profile && profile.role === 'super_admin') {
+        state.admin = profile;
+        await loadAllData();
+        renderAdmin();
+        return;
+      }
+      await sb.auth.signOut();
     }
+  } catch(e) {
+    await sb.auth.signOut();
   }
   renderLogin();
 }

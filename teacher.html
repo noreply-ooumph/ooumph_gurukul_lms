@@ -91,7 +91,7 @@
 <div id="app"><div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#aaa;font-size:1.1rem">Loading...</div></div>
 <script src="js/supabase-config.js"></script>
 <script>
-const state = { teacher: null, page: 'dashboard', content: [], showDropdown: false, uploadModal: false };
+const state = { teacher: null, page: 'dashboard', content: [], students: [], showDropdown: false, uploadModal: false, studentSearch: '' };
 let uploadFile = null, uploadType = 'video';
 
 function toast(msg, type='success') {
@@ -101,14 +101,21 @@ function toast(msg, type='success') {
 }
 
 async function init() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) {
-    const profile = await getCurrentUser();
-    if (profile && profile.role === 'teacher') {
-      state.teacher = profile;
-      await loadContent();
-      render(); return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      const profile = await getCurrentUser();
+      if (profile && profile.role === 'teacher') {
+        state.teacher = profile;
+        state.view = 'admin';
+        await loadContent();
+        render(); return;
+      }
+      // Wrong role — clear session
+      await sb.auth.signOut();
     }
+  } catch(e) {
+    await sb.auth.signOut();
   }
   renderLogin();
 }
@@ -116,6 +123,16 @@ async function init() {
 async function loadContent() {
   const { data } = await sb.from('content').select('*').eq('track', state.teacher.track).order('created_at', { ascending: false });
   state.content = data || [];
+}
+
+async function loadStudents() {
+  const { data } = await sb.from('profiles').select('*').eq('role', 'student').eq('track', state.teacher.track).order('full_name');
+  state.students = data || [];
+}
+
+async function loadAllStudents() {
+  const { data } = await sb.from('profiles').select('*').eq('role', 'student').order('full_name');
+  return data || [];
 }
 
 async function doLogin(email, password) {
@@ -162,6 +179,7 @@ function renderLogin() {
 }
 
 function render() {
+  if (state.page === 'students' && !state.students.length) loadStudents().then(() => render());
   const myContent = state.content;
   const totalViews = myContent.reduce((s, c) => s + (c.views||0), 0);
   const byType = { video: myContent.filter(c=>c.type==='video').length, pdf: myContent.filter(c=>c.type==='pdf').length, image: myContent.filter(c=>c.type==='image').length, csv: myContent.filter(c=>c.type==='csv').length };
@@ -190,6 +208,8 @@ function render() {
         <div class="sidebar-item ${state.page==='dashboard'?'active':''}" data-page="dashboard"><span>📊</span><span>Dashboard</span></div>
         <div class="sidebar-item ${state.page==='videos'?'active':''}" data-page="videos"><span>🎥</span><span>Videos</span></div>
         <div class="sidebar-item ${state.page==='files'?'active':''}" data-page="files"><span>📁</span><span>Files</span></div>
+        <div style="height:1px;background:#303030;margin:1rem 0"></div>
+        <div class="sidebar-item ${state.page==='students'?'active':''}" data-page="students"><span>📚</span><span>My Students</span></div>
       </div>
       <div class="content">${renderPageContent(myContent, totalViews, byType)}</div>
     </div>
@@ -224,6 +244,7 @@ function renderPageContent(content, views, byType) {
       <button class="btn btn-primary" id="openUploadBtn2" style="width:auto;padding:.75rem 1.5rem">➕ Upload File</button>
     </div>${renderList(files)}`;
   }
+  if (state.page === 'students') return renderStudentsPage();
   return '';
 }
 
@@ -243,6 +264,71 @@ function renderList(items) {
       </div>
       <div class="item-actions"><button class="icon-btn delete" data-del="${item.id}" data-url="${item.url}" title="Delete">🗑️</button></div>
     </div>`).join('')}</div>`;
+}
+
+function renderStudentsPage() {
+  const filtered = state.students.filter(s =>
+    !state.studentSearch ||
+    s.full_name.toLowerCase().includes(state.studentSearch) ||
+    s.email.toLowerCase().includes(state.studentSearch)
+  );
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+      <h1 style="font-size:2rem">My Students</h1>
+      <button class="btn btn-primary" id="addStudentBtn" style="width:auto;padding:.75rem 1.5rem">➕ Add Student</button>
+    </div>
+    <p style="color:#aaa;margin-bottom:2rem">Students enrolled in <strong style="color:#ff0000">${state.teacher.track}</strong> track</p>
+    <div style="display:flex;gap:1rem;margin-bottom:1.5rem">
+      <div style="flex:1;display:flex;background:#212121;border:1px solid #303030;border-radius:8px;padding:.5rem 1rem">
+        <input id="studentSearch" style="flex:1;border:none;background:none;color:#f1f1f1;font-size:1rem;outline:none" placeholder="Search students..." value="${state.studentSearch}">
+        <span style="color:#aaa">🔍</span>
+      </div>
+    </div>
+    ${filtered.length === 0 ? `
+      <div style="text-align:center;padding:4rem;color:#aaa">
+        <div style="font-size:4rem;margin-bottom:1rem">📭</div>
+        <h2>No students in ${state.teacher.track} track</h2>
+        <p>Add students using the button above</p>
+      </div>` : `
+      <div style="background:#212121;border-radius:12px;overflow-x:auto;border:1px solid #303030">
+        <table style="width:100%;border-collapse:collapse;min-width:600px">
+          <thead style="background:#181818">
+            <tr>
+              <th style="padding:1rem;text-align:left;color:#ff0000;border-bottom:2px solid #303030">Name</th>
+              <th style="padding:1rem;text-align:left;color:#ff0000;border-bottom:2px solid #303030">Email</th>
+              <th style="padding:1rem;text-align:left;color:#ff0000;border-bottom:2px solid #303030">Qualification</th>
+              <th style="padding:1rem;text-align:left;color:#ff0000;border-bottom:2px solid #303030">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(s => `<tr style="border-bottom:1px solid #303030;transition:background .2s" onmouseover="this.style.background='#181818'" onmouseout="this.style.background=''">
+              <td style="padding:1rem">${s.full_name}</td>
+              <td style="padding:1rem;color:#aaa">${s.email}</td>
+              <td style="padding:1rem;color:#aaa">${s.qualification||'-'}</td>
+              <td style="padding:1rem">
+                <button style="background:none;border:1px solid #ff4444;color:#ff4444;padding:.4rem .8rem;border-radius:6px;cursor:pointer;font-size:.85rem;transition:all .2s"
+                  onmouseover="this.style.background='#ff4444';this.style.color='#fff'"
+                  onmouseout="this.style.background='none';this.style.color='#ff4444'"
+                  data-remove="${s.id}" data-name="${s.full_name}">Remove</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`}
+
+    <!-- Add Student Modal -->
+    <div id="addStudentModal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000;padding:2rem">
+      <div style="background:#212121;border-radius:12px;max-width:600px;width:100%;padding:2rem;border:1px solid #303030;max-height:80vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+          <h2>Add Student to ${state.teacher.track}</h2>
+          <button id="closeAddStudent" style="background:none;border:none;color:#aaa;font-size:2rem;cursor:pointer">×</button>
+        </div>
+        <p style="color:#aaa;margin-bottom:1rem;font-size:.9rem">Select an existing student to assign to your track:</p>
+        <div id="availableStudents" style="max-height:400px;overflow-y:auto">
+          <div style="text-align:center;padding:2rem;color:#aaa">Loading...</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function thumbPlaceholder(type) {
@@ -293,6 +379,58 @@ function setupHandlers() {
   const openUpload = () => { state.uploadModal = true; render(); };
   document.getElementById('openUploadBtn')?.addEventListener('click', openUpload);
   document.getElementById('openUploadBtn2')?.addEventListener('click', openUpload);
+
+  // Student page handlers
+  if (state.page === 'students') {
+    document.getElementById('studentSearch')?.addEventListener('input', e => {
+      state.studentSearch = e.target.value.toLowerCase();
+      document.querySelector('.content').innerHTML = renderStudentsPage();
+      setupHandlers();
+    });
+
+    document.getElementById('addStudentBtn')?.addEventListener('click', async () => {
+      document.getElementById('addStudentModal').classList.remove('hidden');
+      const all = await loadAllStudents();
+      const others = all.filter(s => s.track !== state.teacher.track);
+      const div = document.getElementById('availableStudents');
+      if (!others.length) {
+        div.innerHTML = '<p style="color:#aaa;text-align:center;padding:2rem">No students available to add.</p>';
+        return;
+      }
+      div.innerHTML = others.map(s => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem;border-bottom:1px solid #303030">
+          <div>
+            <div style="font-weight:600">${s.full_name}</div>
+            <div style="color:#aaa;font-size:.85rem">${s.email} · Currently: <span style="color:#f39c12">${s.track||'Unassigned'}</span></div>
+          </div>
+          <button style="background:#ff0000;color:#fff;border:none;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-weight:600"
+            data-assign="${s.id}" data-name="${s.full_name}">Add →</button>
+        </div>`).join('');
+
+      div.querySelectorAll('[data-assign]').forEach(btn => btn.addEventListener('click', async () => {
+        const id = btn.dataset.assign;
+        const name = btn.dataset.name;
+        const { error } = await sb.from('profiles').update({ track: state.teacher.track }).eq('id', id);
+        if (error) { toast('Error: ' + error.message, 'error'); return; }
+        toast(`${name} added to ${state.teacher.track}`);
+        document.getElementById('addStudentModal').classList.add('hidden');
+        await loadStudents(); render();
+      }));
+    });
+
+    document.getElementById('closeAddStudent')?.addEventListener('click', () => {
+      document.getElementById('addStudentModal').classList.add('hidden');
+    });
+
+    document.querySelectorAll('[data-remove]').forEach(btn => btn.addEventListener('click', async () => {
+      const name = btn.dataset.name;
+      if (!confirm(`Remove ${name} from ${state.teacher.track} track?`)) return;
+      const { error } = await sb.from('profiles').update({ track: null }).eq('id', btn.dataset.remove);
+      if (error) { toast('Error: ' + error.message, 'error'); return; }
+      toast(`${name} removed from ${state.teacher.track}`);
+      await loadStudents(); render();
+    }));
+  }
 
   document.querySelectorAll('[data-del]').forEach(el => el.addEventListener('click', async () => {
     if (!confirm('Delete this content?')) return;
