@@ -246,6 +246,7 @@ function render() {
       <div class="sidebar">
         <div class="sidebar-item ${state.page==='home'?'active':''}" data-page="home"><span>🏠</span><span>Home</span></div>
         <div class="sidebar-item ${state.page==='my-track'?'active':''}" data-page="my-track"><span>📚</span><span>My Track</span></div>
+        <div class="sidebar-item" onclick="window.location.href='courses.html'" style="color:#f39c12"><span>🎓</span><span>Courses</span></div>
         <div class="sidebar-divider"></div>
         <div class="sidebar-item ${state.page==='watchlist'?'active':''}" data-page="watchlist"><span>⏰</span><span>Watch Later</span></div>
         <div class="sidebar-item ${state.page==='liked'?'active':''}" data-page="liked"><span>❤️</span><span>Liked</span></div>

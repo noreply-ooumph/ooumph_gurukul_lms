@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OOUMPH Gurukul — Courses</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Roboto',-apple-system,sans-serif;background:#0f0f0f;color:#f1f1f1;line-height:1.6}
+    .navbar{background:#212121;padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #303030;position:sticky;top:0;z-index:100}
+    .logo{font-size:1.5rem;font-weight:900;color:#ff0000;cursor:pointer;display:flex;align-items:center;gap:.5rem;text-decoration:none}
+    .nav-right{display:flex;align-items:center;gap:1rem}
+    .track-pill{padding:.4rem 1rem;background:#ff0000;border-radius:20px;font-size:.85rem;font-weight:600}
+    .back-btn{background:#212121;border:1px solid #303030;color:#f1f1f1;cursor:pointer;font-size:.9rem;padding:.5rem 1rem;border-radius:8px;display:inline-flex;align-items:center;gap:.5rem;transition:all .2s;text-decoration:none}
+    .back-btn:hover{border-color:#ff0000;color:#ff0000}
+    .main{max-width:1200px;margin:0 auto;padding:2rem}
+    .page-header{margin-bottom:2.5rem}
+    .page-header h1{font-size:2rem;margin-bottom:.5rem}
+    .page-header p{color:#aaa}
+    .progress-bar-wrap{background:#303030;border-radius:4px;height:6px;margin-top:.5rem;overflow:hidden}
+    .progress-bar{height:100%;background:#ff0000;border-radius:4px;transition:width .4s ease}
+
+    /* Course Grid */
+    .courses-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.5rem;margin-bottom:3rem}
+    .course-card{background:#212121;border:1px solid #303030;border-radius:16px;overflow:hidden;cursor:pointer;transition:all .25s}
+    .course-card:hover{border-color:#ff0000;transform:translateY(-4px);box-shadow:0 8px 28px rgba(255,0,0,.18)}
+    .course-thumb{width:100%;height:180px;object-fit:cover;background:#181818;display:flex;align-items:center;justify-content:center;font-size:4rem}
+    .course-body{padding:1.25rem}
+    .course-level{font-size:.75rem;font-weight:700;color:#ff0000;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem}
+    .course-title{font-size:1.1rem;font-weight:700;margin-bottom:.5rem;line-height:1.4}
+    .course-desc{color:#aaa;font-size:.88rem;line-height:1.6;margin-bottom:1rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .course-meta{display:flex;gap:1rem;font-size:.82rem;color:#888;margin-bottom:1rem;flex-wrap:wrap}
+    .course-meta span{display:flex;align-items:center;gap:.3rem}
+    .enroll-btn{width:100%;padding:.75rem;background:#ff0000;border:none;border-radius:8px;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s}
+    .enroll-btn:hover{background:#cc0000}
+    .enroll-btn.enrolled{background:#303030;color:#00ff88}
+    .progress-label{font-size:.8rem;color:#aaa;margin-bottom:.3rem;display:flex;justify-content:space-between}
+
+    /* Course Viewer */
+    .viewer{display:none}
+    .viewer.active{display:flex;gap:0;min-height:calc(100vh - 65px)}
+    .course-sidebar{width:320px;background:#181818;border-right:1px solid #303030;padding:1.5rem;overflow-y:auto;flex-shrink:0}
+    .course-sidebar h2{font-size:1rem;font-weight:700;margin-bottom:1rem;color:#f1f1f1;line-height:1.4}
+    .module-block{margin-bottom:1rem}
+    .module-title{font-size:.82rem;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.06em;padding:.5rem 0;border-bottom:1px solid #303030;margin-bottom:.5rem}
+    .lesson-item{display:flex;align-items:center;gap:.6rem;padding:.6rem .5rem;border-radius:6px;cursor:pointer;transition:background .2s;font-size:.9rem}
+    .lesson-item:hover{background:#212121}
+    .lesson-item.active{background:#2a1a1a;color:#ff0000}
+    .lesson-item.completed .lesson-icon{color:#00ff88}
+    .lesson-icon{font-size:1rem;flex-shrink:0}
+    .lesson-name{flex:1;line-height:1.3}
+    .lesson-dur{font-size:.75rem;color:#888;flex-shrink:0}
+    .viewer-content{flex:1;padding:2rem;overflow-y:auto}
+    .video-frame{background:#000;border-radius:12px;overflow:hidden;margin-bottom:1.5rem;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;font-size:5rem}
+    .lesson-header{margin-bottom:1.5rem}
+    .lesson-header h1{font-size:1.5rem;margin-bottom:.5rem}
+    .lesson-header p{color:#aaa;font-size:.95rem;line-height:1.7}
+    .lesson-actions{display:flex;gap:1rem;margin-bottom:2rem;flex-wrap:wrap}
+    .lesson-btn{flex:1;min-width:160px;padding:.75rem 1rem;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:.5rem}
+    .btn-complete{background:#00ff88;color:#000}
+    .btn-complete:hover{background:#00cc6a}
+    .btn-complete.done{background:#303030;color:#00ff88;cursor:default}
+    .btn-next{background:#ff0000;color:#fff}
+    .btn-next:hover{background:#cc0000}
+    .btn-prev{background:#303030;color:#f1f1f1}
+    .btn-prev:hover{background:#404040}
+    .resource-card{background:#212121;border:1px solid #303030;border-radius:10px;padding:1rem;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem}
+    .resource-icon{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+    .resource-icon.pdf{background:#ff6b00}
+    .resource-icon.video{background:#ff0000}
+    .resource-icon.quiz{background:#9b59b6}
+    .resource-title{font-weight:600;font-size:.9rem}
+    .resource-sub{color:#aaa;font-size:.8rem}
+    .cert-banner{background:linear-gradient(135deg,#1a1200,#2a2000);border:1px solid #f39c12;border-radius:12px;padding:1.5rem;text-align:center;margin-top:2rem}
+    .cert-banner h2{color:#f39c12;margin-bottom:.5rem}
+    .cert-banner p{color:#aaa;font-size:.9rem;margin-bottom:1rem}
+    .cert-btn{background:#f39c12;color:#000;border:none;padding:.75rem 2rem;border-radius:8px;font-weight:700;cursor:pointer;font-size:1rem}
+    .cert-btn:hover{background:#e67e22}
+
+    /* Grid view toggle */
+    .courses-view{display:block}
+    .courses-view.hidden{display:none}
+    .viewer-wrap{display:none}
+    .viewer-wrap.active{display:flex;flex-direction:column;min-height:calc(100vh - 65px)}
+    .viewer-inner{display:flex;flex:1}
+
+    /* Loading */
+    .loading-screen{display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1rem;color:#aaa}
+    .spinner{width:40px;height:40px;border:3px solid #303030;border-top-color:#ff0000;border-radius:50%;animation:spin .7s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* Badge */
+    .badge{padding:.2rem .6rem;border-radius:10px;font-size:.75rem;font-weight:600}
+    .badge.free{background:#00ff8822;color:#00ff88;border:1px solid #00ff8844}
+    .badge.pro{background:#ff000022;color:#ff6666;border:1px solid #ff000044}
+
+    /* Completion modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:2rem}
+    .modal-box{background:#212121;border:2px solid #f39c12;border-radius:16px;padding:2.5rem;max-width:480px;width:100%;text-align:center}
+    .modal-box h2{font-size:1.75rem;color:#f39c12;margin-bottom:.5rem}
+    .modal-box p{color:#aaa;margin-bottom:1.5rem}
+    .modal-close{background:#303030;color:#f1f1f1;border:none;padding:.75rem 2rem;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:600}
+
+    @media(max-width:768px){
+      .courses-grid{grid-template-columns:1fr}
+      .viewer-inner{flex-direction:column}
+      .course-sidebar{width:100%;border-right:none;border-bottom:1px solid #303030;max-height:280px}
+    }
+  </style>
+</head>
+<body>
+
+<div id="loadingScreen" class="loading-screen">
+  <div class="spinner"></div>
+  <p>Loading courses...</p>
+</div>
+
+<div id="appShell" style="display:none">
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="student.html" class="logo"><span>▶</span><span>OOUMPH</span></a>
+    <div class="nav-right">
+      <span class="track-pill" id="trackPill">—</span>
+      <a href="student.html" class="back-btn">← Back to LMS</a>
+    </div>
+  </nav>
+
+  <!-- Course Grid View -->
+  <div class="courses-view" id="coursesView">
+    <div class="main">
+      <div class="page-header">
+        <h1>🎓 Gurukul Courses</h1>
+        <p id="trackSubtitle">Your learning path for the DAO ecosystem</p>
+      </div>
+      <div class="courses-grid" id="coursesGrid"></div>
+    </div>
+  </div>
+
+  <!-- Course Viewer -->
+  <div class="viewer-wrap" id="viewerWrap">
+    <div style="padding:.75rem 1.5rem;background:#181818;border-bottom:1px solid #303030;display:flex;align-items:center;gap:1rem">
+      <button class="back-btn" id="backToCourses">← All Courses</button>
+      <span id="viewerBreadcrumb" style="color:#aaa;font-size:.9rem"></span>
+    </div>
+    <div class="viewer-inner">
+      <div class="course-sidebar" id="courseSidebar"></div>
+      <div class="viewer-content" id="viewerContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Completion Modal -->
+<div class="modal-overlay hidden" id="completionModal">
+  <div class="modal-box">
+    <div style="font-size:4rem;margin-bottom:1rem">🏆</div>
+    <h2>Course Complete!</h2>
+    <p id="completionMsg">You've completed all lessons. Your certificate is ready.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+      <button class="cert-btn" onclick="downloadCert()">🎓 Download Certificate</button>
+      <button class="modal-close" onclick="document.getElementById('completionModal').classList.add('hidden')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/supabase-config.js"></script>
+<script>
+
+// ─── Demo Course Data ───────────────────────────────────────────────────────
+
+const DEMO_COURSES = {
+  Agriculture: [{
+    id:'agri-01', title:'Digital Agriculture Fundamentals', level:'Beginner',
+    desc:'Master modern AgriTech tools — IoT sensors, precision farming, and AI-driven crop analytics used by India\'s top FPOs.',
+    duration:'6h 40m', lessons:18, enrolled:2847, rating:4.8, badge:'free', emoji:'🌾',
+    modules:[
+      { title:'Module 1 — AgriTech Landscape', lessons:[
+        {id:'a1',title:'Welcome & Course Overview',type:'video',dur:'8m',desc:'Introduction to the course, what you will learn, and how Gurukul works with DAO tracks.'},
+        {id:'a2',title:'India\'s AgriTech Revolution',type:'video',dur:'14m',desc:'How digital technology is transforming smallholder farming across India and South Asia.'},
+        {id:'a3',title:'Key Stakeholders in Modern Agriculture',type:'pdf',dur:'Read',desc:'Detailed breakdown of farmers, FPOs, agri-startups, and government bodies driving the change.'},
+      ]},
+      { title:'Module 2 — Precision Farming & IoT', lessons:[
+        {id:'a4',title:'IoT Sensors on the Farm',type:'video',dur:'18m',desc:'Soil moisture sensors, weather stations, and drone imaging — how they work and what they cost.'},
+        {id:'a5',title:'Precision Farming Case Studies',type:'pdf',dur:'Read',desc:'Real examples from Maharashtra, Punjab, and Karnataka where IoT improved yields by 30–40%.'},
+        {id:'a6',title:'Module 2 Quiz',type:'quiz',dur:'10m',desc:'Test your understanding of IoT tools and precision farming concepts.'},
+      ]},
+      { title:'Module 3 — AI & Data in Agriculture', lessons:[
+        {id:'a7',title:'AI-Powered Crop Advisory',type:'video',dur:'20m',desc:'How machine learning models predict pest attacks, irrigation needs, and harvest timing.'},
+        {id:'a8',title:'Building a Farm Data Dashboard',type:'video',dur:'16m',desc:'Step-by-step walkthrough of setting up a basic data pipeline for a 10-acre farm.'},
+        {id:'a9',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Comprehensive assessment covering all three modules. Score 70%+ to earn your certificate.'},
+      ]},
+    ]
+  }],
+  Healthcare: [{
+    id:'health-01', title:'Digital Healthcare Management', level:'Intermediate',
+    desc:'Navigate India\'s ABDM ecosystem, telehealth platforms, and AI-assisted diagnostics transforming primary care delivery.',
+    duration:'7h 20m', lessons:20, enrolled:3120, rating:4.9, badge:'free', emoji:'🏥',
+    modules:[
+      { title:'Module 1 — India\'s Health Stack', lessons:[
+        {id:'h1',title:'ABDM & ABHA — The Digital Health Foundation',type:'video',dur:'16m',desc:'Understanding Ayushman Bharat Digital Mission and how ABHA IDs are transforming patient records.'},
+        {id:'h2',title:'Unified Health Interface (UHI) Deep Dive',type:'pdf',dur:'Read',desc:'Technical overview of the UHI protocol and how platforms plug into the national health network.'},
+        {id:'h3',title:'Healthcare Compliance Overview',type:'video',dur:'12m',desc:'DPDP Act, HIPAA basics, and what healthcare providers must do to stay compliant in 2026.'},
+      ]},
+      { title:'Module 2 — Telehealth Operations', lessons:[
+        {id:'h4',title:'Setting Up a Telehealth Practice',type:'video',dur:'22m',desc:'End-to-end guide: tech stack, doctor onboarding, prescription flow, and patient experience.'},
+        {id:'h5',title:'Tele-ICU & Remote Monitoring',type:'video',dur:'18m',desc:'How hospitals in tier-2 cities are using remote ICU monitoring to reduce mortality rates.'},
+        {id:'h6',title:'Module 2 Assessment',type:'quiz',dur:'10m',desc:'Quiz on telehealth operations and technology stack.'},
+      ]},
+      { title:'Module 3 — AI in Diagnostics', lessons:[
+        {id:'h7',title:'AI-Powered Radiology & Pathology',type:'video',dur:'24m',desc:'Real-world applications of computer vision in reading X-rays, MRIs, and blood test results.'},
+        {id:'h8',title:'Chronic Care Management Platforms',type:'pdf',dur:'Read',desc:'How diabetes and hypertension management apps achieve 80%+ adherence rates.'},
+        {id:'h9',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Score 70%+ to earn your Digital Healthcare Management certificate.'},
+      ]},
+    ]
+  }],
+  Education: [{
+    id:'edu-01', title:'EdTech Product Design & Delivery', level:'Beginner',
+    desc:'Design outcome-driven learning experiences, build LMS workflows, and leverage AI mentoring to improve learner retention.',
+    duration:'5h 50m', lessons:16, enrolled:1984, rating:4.7, badge:'free', emoji:'📚',
+    modules:[
+      { title:'Module 1 — Learning Design Principles', lessons:[
+        {id:'e1',title:'Outcome-Based Curriculum Design',type:'video',dur:'15m',desc:'How to design courses that guarantee measurable skill outcomes rather than just content delivery.'},
+        {id:'e2',title:'The Forgetting Curve & Spaced Repetition',type:'video',dur:'11m',desc:'Neuroscience-backed techniques to improve 30-day retention from 20% to 80%.'},
+        {id:'e3',title:'Learning Design Templates',type:'pdf',dur:'Read',desc:'Ready-to-use templates for course outlines, lesson plans, and assessment rubrics.'},
+      ]},
+      { title:'Module 2 — AI-Powered Learning', lessons:[
+        {id:'e4',title:'Building an AI Mentor with Claude API',type:'video',dur:'25m',desc:'Live demo of integrating Claude as a 24/7 tutor that answers student questions in context.'},
+        {id:'e5',title:'Personalisation at Scale',type:'video',dur:'18m',desc:'How platforms like Duolingo and Khan Academy use ML to adapt content to each learner.'},
+        {id:'e6',title:'Module 2 Quiz',type:'quiz',dur:'10m',desc:'Test your knowledge of AI tools in education.'},
+      ]},
+      { title:'Module 3 — EdTech Business Models', lessons:[
+        {id:'e7',title:'Subscription vs Marketplace vs B2B',type:'video',dur:'20m',desc:'Detailed unit economics comparison of three EdTech revenue models with real company examples.'},
+        {id:'e8',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Comprehensive final test. Pass to earn your EdTech certificate.'},
+      ]},
+    ]
+  }],
+  Commerce: [{
+    id:'comm-01', title:'D2C Brand Building on ONDC', level:'Intermediate',
+    desc:'Launch and scale a direct-to-consumer brand on India\'s Open Network for Digital Commerce with zero platform dependency.',
+    duration:'6h 10m', lessons:17, enrolled:4210, rating:4.8, badge:'free', emoji:'🛍️',
+    modules:[
+      { title:'Module 1 — ONDC Ecosystem', lessons:[
+        {id:'c1',title:'ONDC vs Marketplaces — The Shift',type:'video',dur:'14m',desc:'Why India\'s open commerce protocol is disrupting Flipkart, Amazon, and Meesho\'s dominance.'},
+        {id:'c2',title:'Seller Onboarding on ONDC',type:'video',dur:'18m',desc:'Step-by-step guide to listing products, setting up logistics, and managing returns on ONDC.'},
+        {id:'c3',title:'ONDC Compliance & GST',type:'pdf',dur:'Read',desc:'Complete guide to GST compliance, e-invoicing, and FSSAI requirements for D2C brands.'},
+      ]},
+      { title:'Module 2 — Brand Building & Social Commerce', lessons:[
+        {id:'c4',title:'Creator-Led Commerce Playbook',type:'video',dur:'22m',desc:'How Mamaearth, boAt, and Sugar Cosmetics built ₹1000Cr brands through creator partnerships.'},
+        {id:'c5',title:'Instagram & WhatsApp Commerce',type:'video',dur:'16m',desc:'Setting up Instagram Shopping and WhatsApp Catalog for zero-commission direct sales.'},
+        {id:'c6',title:'Module 2 Quiz',type:'quiz',dur:'10m',desc:'Commerce and social selling knowledge check.'},
+      ]},
+      { title:'Module 3 — Scaling & Logistics', lessons:[
+        {id:'c7',title:'Last-Mile Fulfilment Strategy',type:'video',dur:'20m',desc:'3PL vs in-house logistics: unit economics, SLAs, and when to switch as you scale.'},
+        {id:'c8',title:'D2C Metrics Dashboard',type:'pdf',dur:'Read',desc:'The 12 KPIs every D2C founder must track: CAC, LTV, ROAS, NPS, repeat rate.'},
+        {id:'c9',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Pass to earn your D2C Commerce certificate.'},
+      ]},
+    ]
+  }],
+  Governance: [{
+    id:'gov-01', title:'Digital Public Infrastructure & Policy', level:'Advanced',
+    desc:'Understand India Stack, digital governance frameworks, and how policy shapes the DAO ecosystem across 40 industries.',
+    duration:'8h 00m', lessons:22, enrolled:892, rating:4.6, badge:'free', emoji:'🏛️',
+    modules:[
+      { title:'Module 1 — India Stack Deep Dive', lessons:[
+        {id:'g1',title:'Aadhaar, UPI, ONDC — The Trinity',type:'video',dur:'20m',desc:'How India\'s three foundational digital public goods created a $300B fintech ecosystem.'},
+        {id:'g2',title:'DPDP Act 2023 — What It Means',type:'video',dur:'16m',desc:'Practical breakdown of India\'s data protection law and compliance requirements for platforms.'},
+        {id:'g3',title:'Policy Frameworks for DAOs',type:'pdf',dur:'Read',desc:'Legal and regulatory landscape for community-owned autonomous organizations in India.'},
+      ]},
+      { title:'Module 2 — Smart City & Urban Governance', lessons:[
+        {id:'g4',title:'MoHUA\'s Smart City Mission',type:'video',dur:'18m',desc:'How 100 smart cities are deploying IoT, AI, and data dashboards for urban management.'},
+        {id:'g5',title:'Citizen Service Digitisation',type:'video',dur:'15m',desc:'Case studies from Pune, Surat, and Indore on digitising 200+ civic services.'},
+        {id:'g6',title:'Module 2 Assessment',type:'quiz',dur:'10m',desc:'Governance and smart city knowledge check.'},
+      ]},
+      { title:'Module 3 — Policy Design & Advocacy', lessons:[
+        {id:'g7',title:'How to Read and Respond to Policy Consultations',type:'video',dur:'22m',desc:'Practical guide to engaging with TRAI, SEBI, RBI, and MeitY consultation processes.'},
+        {id:'g8',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Pass to earn your Digital Governance certificate.'},
+      ]},
+    ]
+  }],
+  Media: [{
+    id:'media-01', title:'AI-Powered Content Production', level:'Beginner',
+    desc:'Build a full content production pipeline using AI tools — from ideation to distribution — at 10x speed and a fraction of the cost.',
+    duration:'5h 30m', lessons:15, enrolled:5630, rating:4.9, badge:'free', emoji:'🎬',
+    modules:[
+      { title:'Module 1 — AI Content Stack', lessons:[
+        {id:'m1',title:'The Modern Creator\'s AI Toolkit',type:'video',dur:'15m',desc:'Overview of 20+ AI tools for writing, video, audio, and design — what to use when.'},
+        {id:'m2',title:'Prompt Engineering for Content',type:'video',dur:'18m',desc:'Master prompt patterns that generate brand-consistent content at scale.'},
+        {id:'m3',title:'AI Content Workflows',type:'pdf',dur:'Read',desc:'SOPs for a 2-person team producing 50 pieces of content per week using AI.'},
+      ]},
+      { title:'Module 2 — Video & Short-Form', lessons:[
+        {id:'m4',title:'Reels & Shorts Production Pipeline',type:'video',dur:'20m',desc:'From script to published reel in under 2 hours — the exact workflow top creators use.'},
+        {id:'m5',title:'YouTube Strategy in 2026',type:'video',dur:'16m',desc:'Algorithm changes, long-form vs shorts strategy, and monetisation paths in 2026.'},
+        {id:'m6',title:'Module 2 Quiz',type:'quiz',dur:'10m',desc:'Content production and platform strategy quiz.'},
+      ]},
+      { title:'Module 3 — Distribution & Monetisation', lessons:[
+        {id:'m7',title:'Multi-Platform Distribution Automation',type:'video',dur:'18m',desc:'How to publish one piece of content to 8 platforms simultaneously using no-code tools.'},
+        {id:'m8',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Pass to earn your AI Content Production certificate.'},
+      ]},
+    ]
+  }],
+  Telecom: [{
+    id:'tel-01', title:'5G Networks & CPaaS Fundamentals', level:'Intermediate',
+    desc:'Deep dive into 5G architecture, Communication Platform as a Service (CPaaS), and IoT SIM management for the next billion connections.',
+    duration:'7h 00m', lessons:19, enrolled:1102, rating:4.7, badge:'free', emoji:'📡',
+    modules:[
+      { title:'Module 1 — 5G Architecture', lessons:[
+        {id:'t1',title:'5G vs 4G — What Actually Changed',type:'video',dur:'18m',desc:'Technical breakdown of 5G NR, standalone vs non-standalone, and network slicing.'},
+        {id:'t2',title:'India\'s 5G Rollout — Jio & Airtel',type:'video',dur:'14m',desc:'How India went from 0 to 100M 5G users in 18 months and what\'s next.'},
+        {id:'t3',title:'5G Spectrum & Regulations',type:'pdf',dur:'Read',desc:'DoT spectrum policy, TRAI regulations, and what they mean for enterprise 5G deployments.'},
+      ]},
+      { title:'Module 2 — CPaaS & Enterprise Comms', lessons:[
+        {id:'t4',title:'Building on CPaaS APIs',type:'video',dur:'22m',desc:'Hands-on walkthrough of SMS, voice, and WhatsApp APIs for enterprise communication flows.'},
+        {id:'t5',title:'DLT Registration & Compliance',type:'video',dur:'16m',desc:'India\'s Distributed Ledger Technology requirements for bulk messaging — practical guide.'},
+        {id:'t6',title:'Module 2 Quiz',type:'quiz',dur:'10m',desc:'CPaaS and enterprise communication quiz.'},
+      ]},
+      { title:'Module 3 — IoT Connectivity', lessons:[
+        {id:'t7',title:'IoT SIM Management at Scale',type:'video',dur:'20m',desc:'How to manage millions of IoT SIMs — provisioning, monitoring, and cost optimisation.'},
+        {id:'t8',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Pass to earn your 5G & CPaaS certificate.'},
+      ]},
+    ]
+  }],
+  Engineering: [{
+    id:'eng-01', title:'Industry 4.0 & Smart Manufacturing', level:'Advanced',
+    desc:'Implement Industrial IoT, predictive maintenance, and AI-driven quality control on the factory floor.',
+    duration:'8h 30m', lessons:23, enrolled:1456, rating:4.8, badge:'free', emoji:'⚙️',
+    modules:[
+      { title:'Module 1 — Industry 4.0 Foundations', lessons:[
+        {id:'en1',title:'The Fourth Industrial Revolution',type:'video',dur:'16m',desc:'How cyber-physical systems, IoT, and AI are converging to transform global manufacturing.'},
+        {id:'en2',title:'India\'s Manufacturing Ecosystem',type:'video',dur:'14m',desc:'PLI schemes, China+1 strategy, and why India is becoming the world\'s next factory.'},
+        {id:'en3',title:'Industry 4.0 Readiness Assessment',type:'pdf',dur:'Read',desc:'Self-assessment framework to evaluate your factory\'s digital maturity level.'},
+      ]},
+      { title:'Module 2 — IIoT Implementation', lessons:[
+        {id:'en4',title:'Industrial IoT Architecture',type:'video',dur:'24m',desc:'Sensors, gateways, edge computing, and cloud platforms for factory floor connectivity.'},
+        {id:'en5',title:'Predictive Maintenance with AI',type:'video',dur:'20m',desc:'How ML models predict equipment failure 2–4 weeks in advance, reducing downtime by 40%.'},
+        {id:'en6',title:'Module 2 Assessment',type:'quiz',dur:'10m',desc:'IIoT and predictive maintenance quiz.'},
+      ]},
+      { title:'Module 3 — Quality & Sustainability', lessons:[
+        {id:'en7',title:'AI-Powered Quality Control',type:'video',dur:'22m',desc:'Computer vision systems for defect detection achieving 99.7% accuracy on production lines.'},
+        {id:'en8',title:'ESG & Green Manufacturing',type:'video',dur:'18m',desc:'Carbon accounting, CBAM compliance, and how manufacturers are hitting net-zero targets.'},
+        {id:'en9',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Pass to earn your Industry 4.0 certificate.'},
+      ]},
+    ]
+  }],
+  Energy: [{
+    id:'ener-01', title:'Renewable Energy & Green Finance', level:'Beginner',
+    desc:'From solar rooftop installations to carbon credit markets — master the full stack of India\'s energy transition.',
+    duration:'6h 20m', lessons:17, enrolled:2103, rating:4.8, badge:'free', emoji:'⚡',
+    modules:[
+      { title:'Module 1 — Solar & BESS', lessons:[
+        {id:'ev1',title:'Solar Rooftop EPC — End to End',type:'video',dur:'18m',desc:'Site survey, system design, grid connection, and DISCOM approval process for rooftop solar.'},
+        {id:'ev2',title:'Battery Energy Storage Systems',type:'video',dur:'16m',desc:'BESS economics, use cases, and why storage is the key to 24/7 renewable energy.'},
+        {id:'ev3',title:'PM Surya Ghar Scheme Guide',type:'pdf',dur:'Read',desc:'Complete guide to government subsidies, net metering, and MNRE incentives for solar.'},
+      ]},
+      { title:'Module 2 — EV & Grid', lessons:[
+        {id:'ev4',title:'EV Charging Infrastructure Business',type:'video',dur:'20m',desc:'How to build a profitable EV charging network — site selection, revenue models, and tech stack.'},
+        {id:'ev5',title:'P2P Energy Trading Platforms',type:'video',dur:'14m',desc:'How blockchain-enabled peer-to-peer energy trading works and its regulatory status in India.'},
+        {id:'ev6',title:'Module 2 Quiz',type:'quiz',dur:'10m',desc:'EV and grid technology knowledge check.'},
+      ]},
+      { title:'Module 3 — Carbon Markets', lessons:[
+        {id:'ev7',title:'Carbon Credits — Issuance to Trading',type:'video',dur:'22m',desc:'How to originate, verify, and sell carbon credits on Verra and Gold Standard registries.'},
+        {id:'ev8',title:'India\'s Carbon Market (CCTS)',type:'video',dur:'16m',desc:'Carbon Credit Trading Scheme framework and how energy companies are positioning.'},
+        {id:'ev9',title:'Final Assessment',type:'quiz',dur:'20m',desc:'Pass to earn your Renewable Energy certificate.'},
+      ]},
+    ]
+  }],
+};
+
+// ─── State ──────────────────────────────────────────────────────────────────
+
+let user = null;
+let currentCourse = null;
+let currentLessonId = null;
+const progress = JSON.parse(localStorage.getItem('gurukul_progress') || '{}');
+const enrolled = JSON.parse(localStorage.getItem('gurukul_enrolled') || '[]');
+
+function saveProgress() { localStorage.setItem('gurukul_progress', JSON.stringify(progress)); }
+function saveEnrolled() { localStorage.setItem('gurukul_enrolled', JSON.stringify(enrolled)); }
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = 'student.html'; return; }
+  user = await getCurrentUser();
+  if (!user || user.role !== 'student') { window.location.href = 'student.html'; return; }
+
+  document.getElementById('trackPill').textContent = user.track;
+  document.getElementById('trackSubtitle').textContent = `${user.track} track — ${(DEMO_COURSES[user.track]||[]).length} course${(DEMO_COURSES[user.track]||[]).length!==1?'s':''}`;
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'block';
+  renderCourseGrid();
+}
+
+// ─── Course Grid ─────────────────────────────────────────────────────────────
+
+function renderCourseGrid() {
+  const courses = DEMO_COURSES[user.track] || [];
+  const grid = document.getElementById('coursesGrid');
+
+  if (!courses.length) {
+    grid.innerHTML = `<div style="text-align:center;padding:4rem;color:#aaa;grid-column:1/-1">
+      <div style="font-size:4rem;margin-bottom:1rem">🚧</div>
+      <h2>Courses coming soon for ${user.track}</h2>
+      <p>Check back next week</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = courses.map(course => {
+    const totalLessons = course.modules.reduce((s,m) => s + m.lessons.length, 0);
+    const completedCount = Object.keys(progress).filter(k => k.startsWith(course.id) && progress[k]).length;
+    const pct = totalLessons ? Math.round((completedCount / totalLessons) * 100) : 0;
+    const isEnrolled = enrolled.includes(course.id);
+
+    return `<div class="course-card" onclick="openCourse('${course.id}')">
+      <div class="course-thumb" style="background:#181818">${course.emoji}</div>
+      <div class="course-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+          <span class="course-level">${course.level}</span>
+          <span class="badge ${course.badge}">${course.badge === 'free' ? 'FREE' : 'PRO'}</span>
+        </div>
+        <div class="course-title">${course.title}</div>
+        <div class="course-desc">${course.desc}</div>
+        <div class="course-meta">
+          <span>⏱ ${course.duration}</span>
+          <span>📖 ${totalLessons} lessons</span>
+          <span>👥 ${course.enrolled.toLocaleString()}</span>
+          <span>⭐ ${course.rating}</span>
+        </div>
+        ${isEnrolled ? `
+          <div class="progress-label"><span>Progress</span><span>${pct}%</span></div>
+          <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+          <button class="enroll-btn enrolled" style="margin-top:.75rem">✓ Continue Learning</button>
+        ` : `
+          <button class="enroll-btn" onclick="event.stopPropagation();enrollCourse('${course.id}')">Enroll Free →</button>
+        `}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function enrollCourse(courseId) {
+  if (!enrolled.includes(courseId)) { enrolled.push(courseId); saveEnrolled(); }
+  openCourse(courseId);
+}
+
+// ─── Course Viewer ───────────────────────────────────────────────────────────
+
+function openCourse(courseId) {
+  const courses = DEMO_COURSES[user.track] || [];
+  currentCourse = courses.find(c => c.id === courseId);
+  if (!currentCourse) return;
+  if (!enrolled.includes(courseId)) { enrolled.push(courseId); saveEnrolled(); }
+
+  document.getElementById('coursesView').classList.add('hidden');
+  document.getElementById('viewerWrap').classList.add('active');
+  document.getElementById('viewerBreadcrumb').textContent = currentCourse.title;
+
+  const firstLesson = currentCourse.modules[0]?.lessons[0];
+  openLesson(firstLesson?.id);
+}
+
+function backToCourses() {
+  document.getElementById('coursesView').classList.remove('hidden');
+  document.getElementById('viewerWrap').classList.remove('active');
+  renderCourseGrid();
+  currentCourse = null; currentLessonId = null;
+}
+
+function openLesson(lessonId) {
+  currentLessonId = lessonId;
+  renderSidebar();
+  renderLesson();
+}
+
+function renderSidebar() {
+  const sidebar = document.getElementById('courseSidebar');
+  const allLessons = currentCourse.modules.flatMap(m => m.lessons);
+  const totalLessons = allLessons.length;
+  const completedCount = allLessons.filter(l => progress[`${currentCourse.id}_${l.id}`]).length;
+  const pct = Math.round((completedCount / totalLessons) * 100);
+
+  sidebar.innerHTML = `
+    <h2>${currentCourse.title}</h2>
+    <div class="progress-label"><span>${completedCount}/${totalLessons} lessons</span><span>${pct}%</span></div>
+    <div class="progress-bar-wrap" style="margin-bottom:1.5rem"><div class="progress-bar" style="width:${pct}%"></div></div>
+    ${currentCourse.modules.map(mod => `
+      <div class="module-block">
+        <div class="module-title">${mod.title}</div>
+        ${mod.lessons.map(lesson => {
+          const done = progress[`${currentCourse.id}_${lesson.id}`];
+          const icon = lesson.type === 'video' ? '▶' : lesson.type === 'pdf' ? '📄' : '📝';
+          return `<div class="lesson-item ${lesson.id === currentLessonId ? 'active' : ''} ${done ? 'completed' : ''}"
+            onclick="openLesson('${lesson.id}')">
+            <span class="lesson-icon">${done ? '✅' : icon}</span>
+            <span class="lesson-name">${lesson.title}</span>
+            <span class="lesson-dur">${lesson.dur}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    `).join('')}`;
+}
+
+function renderLesson() {
+  const allLessons = currentCourse.modules.flatMap(m => m.lessons);
+  const lesson = allLessons.find(l => l.id === currentLessonId);
+  if (!lesson) return;
+
+  const idx = allLessons.indexOf(lesson);
+  const done = progress[`${currentCourse.id}_${lesson.id}`];
+  const hasPrev = idx > 0;
+  const hasNext = idx < allLessons.length - 1;
+  const isLast = !hasNext;
+  const allDone = allLessons.every(l => progress[`${currentCourse.id}_${l.id}`]);
+
+  const mediaContent = lesson.type === 'video'
+    ? `<div class="video-frame"><span style="opacity:.3">▶</span><span style="position:absolute;font-size:1rem;color:#aaa;margin-top:5rem">Demo video — connect YouTube URL to play</span></div>`
+    : lesson.type === 'pdf'
+    ? `<div class="video-frame" style="background:#181818;border-radius:12px;margin-bottom:1.5rem;aspect-ratio:unset;padding:2rem;display:block">
+        <div class="resource-card"><div class="resource-icon pdf">📄</div><div><div class="resource-title">${lesson.title}</div><div class="resource-sub">PDF Study Material · Demo</div></div></div>
+        <p style="color:#aaa;margin-top:1rem;line-height:1.8">${lesson.desc}<br><br>
+        <em style="color:#666">In the live version, PDFs uploaded by teachers will appear here for in-browser reading and download.</em></p>
+      </div>`
+    : `<div class="video-frame" style="background:#1a0a2e;border-radius:12px;margin-bottom:1.5rem">
+        <span>📝</span>
+        <span style="position:absolute;font-size:1rem;color:#aaa;margin-top:5rem">Quiz — ${lesson.dur} · Demo mode</span>
+      </div>`;
+
+  document.getElementById('viewerContent').innerHTML = `
+    ${mediaContent}
+    <div class="lesson-header">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
+        <span style="font-size:.8rem;color:#888;text-transform:uppercase;letter-spacing:.06em">${lesson.type.toUpperCase()}</span>
+        <span style="color:#555">·</span>
+        <span style="font-size:.8rem;color:#888">${lesson.dur}</span>
+      </div>
+      <h1>${lesson.title}</h1>
+      <p>${lesson.desc}</p>
+    </div>
+    <div class="lesson-actions">
+      ${hasPrev ? `<button class="lesson-btn btn-prev" onclick="openLesson('${allLessons[idx-1].id}')">← Previous</button>` : ''}
+      <button class="lesson-btn btn-complete ${done ? 'done' : ''}" id="completeBtn" onclick="markComplete('${lesson.id}', ${isLast})">
+        ${done ? '✅ Completed' : '✓ Mark Complete'}
+      </button>
+      ${hasNext ? `<button class="lesson-btn btn-next" onclick="openLesson('${allLessons[idx+1].id}')">Next →</button>` : ''}
+      ${isLast && allDone ? `<button class="lesson-btn" style="background:#f39c12;color:#000" onclick="showCompletion()">🏆 Get Certificate</button>` : ''}
+    </div>
+    <h3 style="margin-bottom:1rem;font-size:1rem;color:#aaa">About this lesson</h3>
+    <div class="resource-card">
+      <div class="resource-icon ${lesson.type}">${lesson.type==='video'?'▶':lesson.type==='pdf'?'📄':'📝'}</div>
+      <div><div class="resource-title">${lesson.title}</div><div class="resource-sub">${lesson.type.toUpperCase()} · ${lesson.dur}</div></div>
+    </div>`;
+}
+
+function markComplete(lessonId, isLast) {
+  const key = `${currentCourse.id}_${lessonId}`;
+  progress[key] = true;
+  saveProgress();
+
+  const allLessons = currentCourse.modules.flatMap(m => m.lessons);
+  const allDone = allLessons.every(l => progress[`${currentCourse.id}_${l.id}`]);
+
+  renderSidebar();
+  renderLesson();
+
+  if (allDone) { setTimeout(showCompletion, 400); }
+  else if (isLast || true) {
+    const idx = allLessons.findIndex(l => l.id === lessonId);
+    if (idx < allLessons.length - 1) openLesson(allLessons[idx+1].id);
+  }
+}
+
+function showCompletion() {
+  document.getElementById('completionMsg').textContent = `You've completed "${currentCourse.title}". Your certificate is ready to download.`;
+  document.getElementById('completionModal').classList.remove('hidden');
+}
+
+function downloadCert() {
+  const name = user.full_name || 'Learner';
+  const course = currentCourse.title;
+  const date = new Date().toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'});
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Certificate</title>
+  <style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f0f0f;font-family:Georgia,serif}
+  .cert{background:linear-gradient(135deg,#1a1200,#2a2000);border:3px solid #f39c12;border-radius:16px;padding:4rem;max-width:700px;text-align:center;color:#f1f1f1}
+  h1{font-size:2.5rem;color:#f39c12;margin-bottom:.5rem}
+  .sub{color:#aaa;margin-bottom:2rem}
+  .name{font-size:2rem;font-weight:700;color:#fff;margin:1rem 0;padding:1rem;border-top:1px solid #f39c12;border-bottom:1px solid #f39c12}
+  .course{color:#f39c12;font-size:1.1rem;margin-bottom:1rem}
+  .date{color:#888;font-size:.9rem}
+  .logo{font-size:1.5rem;font-weight:900;color:#ff0000;margin-bottom:2rem}</style></head>
+  <body><div class="cert">
+  <div class="logo">▶ OOUMPH GURUKUL</div>
+  <h1>Certificate of Completion</h1>
+  <p class="sub">This certifies that</p>
+  <div class="name">${name}</div>
+  <p class="sub">has successfully completed</p>
+  <div class="course">${course}</div>
+  <div class="date">Issued on ${date} · Ooumph DAO Platform</div>
+  </div></body></html>`);
+  win.document.close();
+  document.getElementById('completionModal').classList.add('hidden');
+}
+
+document.getElementById('backToCourses')?.addEventListener('click', backToCourses);
+
+init();
+</script>
+</body>
+</html>
