@@ -58,9 +58,13 @@ serve(async (req) => {
   }
 
   try {
+    // Supports both Grok (x.ai) and Claude (anthropic) — whichever key is set
+    const GROK_KEY = Deno.env.get('GROK_API_KEY')
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!ANTHROPIC_KEY) {
-      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not set. Add it in Supabase → Edge Functions → Secrets.' }), {
+    const AI_KEY = GROK_KEY || ANTHROPIC_KEY
+
+    if (!AI_KEY) {
+      return new Response(JSON.stringify({ error: 'No AI key configured. Add GROK_API_KEY or ANTHROPIC_API_KEY in Supabase → Edge Functions → Secrets.' }), {
         status: 500, headers: { ...cors, 'Content-Type': 'application/json' }
       })
     }
@@ -73,27 +77,42 @@ serve(async (req) => {
       })
     }
 
-    // Build user message with context
     let userMessage = message
     if (context) userMessage = `Context: ${context}\n\nStudent: ${message}`
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }]
-      })
-    })
+    let res, text
 
-    const data = await res.json()
-    const text = data.content?.[0]?.text || 'No response received.'
+    if (GROK_KEY) {
+      // Grok API (OpenAI-compatible format)
+      res = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${GROK_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'grok-3-mini',
+          max_tokens: 1024,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ]
+        })
+      })
+      const data = await res.json()
+      text = data.choices?.[0]?.message?.content || 'No response received.'
+    } else {
+      // Claude API (Anthropic format)
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMessage }]
+        })
+      })
+      const data = await res.json()
+      text = data.content?.[0]?.text || 'No response received.'
+    }
 
     return new Response(JSON.stringify({ text }), {
       headers: { ...cors, 'Content-Type': 'application/json' }
