@@ -5,7 +5,7 @@
 // ============================================================
 
 const SUPABASE_URL = 'https://macqondmedkskdbqyybo.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_yhmffmwsYtdmhEM4CfpCYw_fbCC_UsK';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hY3FvbmRtZWRrc2tkYnF5eWJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyOTc0MjksImV4cCI6MjA5NTg3MzQyOX0.0LcY0FNhnN2WpvBTObeFXZRYYnesytAVdLV3R36vv6U';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
