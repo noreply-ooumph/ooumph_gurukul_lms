@@ -58,13 +58,11 @@ serve(async (req) => {
   }
 
   try {
-    // Supports both Grok (x.ai) and Claude (anthropic) — whichever key is set
-    const GROK_KEY = Deno.env.get('GROK_API_KEY')
+    const GROQ_KEY = Deno.env.get('GROQ_API_KEY')
     const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY')
-    const AI_KEY = GROK_KEY || ANTHROPIC_KEY
 
-    if (!AI_KEY) {
-      return new Response(JSON.stringify({ error: 'No AI key configured. Add GROK_API_KEY or ANTHROPIC_API_KEY in Supabase → Edge Functions → Secrets.' }), {
+    if (!GROQ_KEY && !ANTHROPIC_KEY) {
+      return new Response(JSON.stringify({ error: 'No AI key configured. Add GROQ_API_KEY in Supabase → Edge Functions → Secrets.' }), {
         status: 500, headers: { ...cors, 'Content-Type': 'application/json' }
       })
     }
@@ -80,16 +78,17 @@ serve(async (req) => {
     let userMessage = message
     if (context) userMessage = `Context: ${context}\n\nStudent: ${message}`
 
-    let res, text
+    let text
 
-    if (GROK_KEY) {
-      // Grok API (OpenAI-compatible format)
-      res = await fetch('https://api.x.ai/v1/chat/completions', {
+    if (GROQ_KEY) {
+      // Groq API — OpenAI-compatible, very fast, free tier
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${GROK_KEY}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'grok-3-mini',
+          model: 'llama-3.3-70b-versatile',
           max_tokens: 1024,
+          temperature: 0.7,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
@@ -97,10 +96,11 @@ serve(async (req) => {
         })
       })
       const data = await res.json()
+      if (data.error) throw new Error(data.error.message)
       text = data.choices?.[0]?.message?.content || 'No response received.'
     } else {
-      // Claude API (Anthropic format)
-      res = await fetch('https://api.anthropic.com/v1/messages', {
+      // Fallback: Claude API
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
